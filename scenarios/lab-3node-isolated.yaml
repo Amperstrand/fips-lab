@@ -30,11 +30,11 @@ isolation:
   include_devices: [mac, linux, esp32]
 
 deploy:
-  fips:
-    build: existing
-    restart_service: false
-  microfips:
-    flash: false
+  restart_before_test: false
+  stop_after_test: false
+  keylog: true
+  warmup_secs: 30
+  readiness_timeout_secs: 60
 
 actions:
   warmup_secs: 30

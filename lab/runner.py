@@ -6,11 +6,13 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .analysis import analyze_run, write_analysis as write_analysis_report
 from .capture.btmon import BtmonCapture
 from .capture.iperf import IperfSession
 from .capture.keylog import KeylogCapture
 from .capture.serial_log import SerialLogCapture
 from .config_gen import write_lab_acl, write_resolved_devices
+from .deploy import DeployManager
 from .device import Device, make_device
 from .inventory import Inventory
 from .results import copy_scenario, create_run_dir, now_iso, write_json
@@ -47,6 +49,7 @@ class LabRunner:
             self._resolve_devices()
             self._write_static_artifacts()
             self._setup_isolation()
+            self._deploy()
             self._setup_captures()
             self._start_captures()
             self._collect_initial_snapshots()
@@ -56,11 +59,13 @@ class LabRunner:
             self._stop_captures()
             self._collect_keylogs()
             self._run_iperf()
-            self._write_analysis("pass")
+            self._run_analysis()
+            self._deploy_cleanup()
             return 0
         except Exception as exc:
             log.exception("Scenario failed: %s", exc)
-            self._write_analysis("error", error=str(exc))
+            self._write_fallback_analysis(str(exc))
+            self._deploy_cleanup()
             return 1
 
     def _setup_logging(self) -> None:
@@ -236,15 +241,46 @@ class LabRunner:
         result = capture.collect()
         write_json(self.run_dir / "keylog-results.json", result)
 
-    def _write_analysis(self, status: str, error: str | None = None) -> None:
+    def _run_analysis(self) -> None:
         if self.run_dir is None:
             return
-        lines = [f"scenario: {self.scenario.name}", f"status: {status}"]
-        if error:
-            lines.append(f"error: {error}")
+        report = analyze_run(self.run_dir)
+        write_analysis_report(report, self.run_dir)
+        log.info("Analysis: verdict=%s", report.verdict)
+
+    def _write_fallback_analysis(self, error: str) -> None:
+        if self.run_dir is None:
+            return
+        lines = [f"scenario: {self.scenario.name}", f"status: error", f"error: {error}"]
         if self.dry_run:
             lines.append("dry_run: true")
         (self.run_dir / "analysis.txt").write_text("\n".join(lines) + "\n")
+
+    def _deploy(self) -> None:
+        deploy_cfg = self.scenario.raw.get("deploy") or {}
+        if not deploy_cfg.get("restart_before_test"):
+            return
+        if self.dry_run:
+            log.info("Dry run: would restart FIPS nodes")
+            return
+        assert self.run_dir is not None
+        manager = DeployManager(self.devices, self.resolved_configs, self.run_dir)
+        keylog = deploy_cfg.get("keylog", True)
+        manager.restart_all(keylog=keylog)
+        warmup = int(deploy_cfg.get("warmup_secs", 30))
+        if warmup > 0:
+            log.info("Warmup: waiting %ds for BLE discovery", warmup)
+            time.sleep(warmup)
+
+    def _deploy_cleanup(self) -> None:
+        deploy_cfg = self.scenario.raw.get("deploy") or {}
+        if not deploy_cfg.get("stop_after_test"):
+            return
+        if self.dry_run:
+            return
+        assert self.run_dir is not None
+        manager = DeployManager(self.devices, self.resolved_configs, self.run_dir)
+        manager.stop_all()
 
 
 def _git_metadata(path: Path) -> dict[str, str | None]:
