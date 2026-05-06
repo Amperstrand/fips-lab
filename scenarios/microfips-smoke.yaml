@@ -1,0 +1,67 @@
+scenario:
+  name: microfips-smoke
+  duration_secs: 300
+  description: Flash microfips, start one Linux FIPS node, verify BLE protocol basics for 5 minutes.
+
+artifacts:
+  fips:
+    source: local-or-target-build
+    repo: Amperstrand/fips
+    ref: ble-transport-reliability
+  microfips:
+    source: local-file
+    repo: Amperstrand/microfips
+    ref: main
+    path: artifacts/microfips-esp32-d0wd.bin
+
+topology:
+  devices:
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+    - id: esp32
+      inventory_ref: esp32-d0wd-01
+      role: microfips-peripheral
+  links:
+    - from: linux
+      to: esp32
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [linux, esp32]
+
+deploy:
+  fips:
+    build: target
+    restart_service: true
+  microfips:
+    flash: true
+
+actions:
+  warmup_secs: 30
+  metrics:
+    interval_secs: 10
+    from: [linux]
+    collect: [show_status, show_peers, show_mmp, show_links, show_tree, show_sessions, show_transports, show_routing, show_acl]
+  capture:
+    serial: true
+    btmon:
+      enabled: true
+      device: linux
+  traffic:
+    enabled: false
+
+assertions:
+  - type: peer_connected
+    from: linux
+    to: esp32
+    within_secs: 60
+  - type: no_serial_crash
+    device: esp32
+  - type: mmp_loss
+    device: linux
+    max_loss_pct: 15.0

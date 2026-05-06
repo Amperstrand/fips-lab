@@ -1,0 +1,63 @@
+scenario:
+  name: lab-3node-isolated
+  duration_secs: 300
+  description: Run this Mac, the Linux host, and one microfips device as an isolated lab mesh.
+
+topology:
+  devices:
+    - id: mac
+      inventory_ref: macbook-local
+      role: fips-controller
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+    - id: esp32
+      inventory_ref: esp32-d0wd-01
+      role: microfips-peripheral
+  links:
+    - from: mac
+      to: linux
+      transport: udp
+    - from: linux
+      to: esp32
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [mac, linux, esp32]
+
+deploy:
+  fips:
+    build: existing
+    restart_service: false
+  microfips:
+    flash: false
+
+actions:
+  warmup_secs: 30
+  metrics:
+    interval_secs: 10
+    from: [mac, linux]
+    collect: [show_status, show_peers, show_mmp, show_links, show_tree, show_acl]
+  capture:
+    serial: true
+    btmon:
+      enabled: true
+      device: linux
+  traffic:
+    enabled: false
+
+assertions:
+  - type: peer_connected
+    from: mac
+    to: linux
+    within_secs: 60
+  - type: peer_connected
+    from: linux
+    to: esp32
+    within_secs: 60
+  - type: no_serial_crash
+    device: esp32

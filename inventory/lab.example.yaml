@@ -1,0 +1,87 @@
+# Copy to inventory/lab.yaml and adjust local paths, ports, and hosts.
+# Secrets and machine-local device paths belong in inventory/lab.yaml, not git.
+
+lab:
+  name: local-ble-lab
+  description: MacBook + Linux host + microfips devices, isolated from the public FIPS mesh.
+
+devices:
+  macbook-local:
+    type: fips
+    platform: macos
+    transport: local
+    role_tags: [controller, ble, udp, tcp]
+    fips_binary: /Users/macbook/src/fips/target/release/fips
+    fipsctl: /Users/macbook/src/fips/target/release/fipsctl
+    config_path: /usr/local/etc/fips/fips.yaml
+    control_socket: /usr/local/var/run/fips/control.sock
+    service:
+      kind: launchd
+      label: com.fips.daemon
+    ble_adapter: default
+    identity:
+      source: persistent
+      npub: null             # Discovered by fipsctl show status or filled manually.
+
+  linux-218:
+    type: fips
+    platform: linux
+    transport: ssh
+    role_tags: [controller, ble, udp, tcp, remote]
+    host: "218"
+    user: ubuntu
+    sudo: true               # fipsctl needs sudo to reach /run/fips/control.sock
+    repo_path: /home/ubuntu/fips
+    fips_binary: /home/ubuntu/fips/target/release/fips
+    fipsctl: /home/ubuntu/fips/target/release/fipsctl
+    config_path: /etc/fips/fips.yaml
+    control_socket: /run/fips/control.sock
+    service:
+      kind: systemd
+      name: fips
+    ble_adapter: hci0
+    identity:
+      source: persistent
+      npub: "npub1peaqmgq6y4wduyr2yqh0fatnvah0ncj0rjqhd5p6aqaz5wsr05ssu0cnha"
+
+  esp32-d0wd-01:
+    type: microfips
+    platform: esp32
+    transport: serial
+    role_tags: [ble, microcontroller]
+    serial_port: /dev/tty.usbserial-CHANGE-ME
+    baud_rate: 115200
+    ble_addr: "02:00:00:00:00:FF"
+    model: esp32-d0wd
+    identity:
+      source: insecure-mac-hash
+      npub: "npub1ccz8l9zpa47k6vz9gphftsrumpw80rjt3nhnefat4symjhrsnmjs38mnyd"
+    firmware:
+      artifact: artifacts/microfips-esp32-d0wd.bin
+      flash:
+        tool: esptool.py
+        chip: esp32
+        baud: 921600
+        address: "0x0"
+
+  esp32-s3-01:
+    type: microfips
+    platform: esp32
+    transport: serial-via-ssh
+    role_tags: [ble, microcontroller, remote]
+    ssh_host: "218"
+    ssh_user: ubuntu
+    serial_port: /dev/ttyUSB1
+    baud_rate: 115200
+    ble_addr: "02:00:00:00:01:AA"
+    model: esp32s3
+    identity:
+      source: insecure-mac-hash
+      npub: null
+    firmware:
+      artifact: artifacts/microfips-esp32s3.bin
+      flash:
+        tool: esptool.py
+        chip: esp32s3
+        baud: 921600
+        address: "0x0"

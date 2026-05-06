@@ -1,0 +1,16 @@
+[project]
+name = "fips-lab"
+version = "0.1.0"
+description = "Physical-device orchestration for FIPS and microfips lab testing"
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml>=6.0",
+  "paramiko>=3.4",
+  "pyserial>=3.5",
+]
+
+[project.scripts]
+fips-lab = "lab.__main__:main"
+
+[tool.ruff]
+line-length = 100
