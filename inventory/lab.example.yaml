@@ -11,17 +11,19 @@ devices:
     platform: macos
     transport: local
     role_tags: [controller, ble, udp, tcp]
+    sudo: true                  # control socket at /tmp/fips-control.sock is root-owned
     fips_binary: /Users/macbook/src/fips/target/release/fips
     fipsctl: /Users/macbook/src/fips/target/release/fipsctl
     config_path: /usr/local/etc/fips/fips.yaml
-    control_socket: /usr/local/var/run/fips/control.sock
+    control_socket: /tmp/fips-control.sock
     service:
       kind: launchd
       label: com.fips.daemon
     ble_adapter: default
+    keylog_path: /tmp/fips-keylog-mac.txt
     identity:
       source: persistent
-      npub: null             # Discovered by fipsctl show status or filled manually.
+      npub: "npub1uwwvvqqqkrkp58txtkaevw20wvqr64rlkhsunwlegfe9lyz9q2asww7dem"
 
   linux-218:
     type: fips
@@ -36,10 +38,12 @@ devices:
     fipsctl: /home/ubuntu/fips/target/release/fipsctl
     config_path: /etc/fips/fips.yaml
     control_socket: /run/fips/control.sock
+    fipsctl: /home/ubuntu/fips/target/release/fipsctl
     service:
       kind: systemd
       name: fips
     ble_adapter: hci0
+    keylog_path: /tmp/fips-keylog.txt
     identity:
       source: persistent
       npub: "npub1peaqmgq6y4wduyr2yqh0fatnvah0ncj0rjqhd5p6aqaz5wsr05ssu0cnha"

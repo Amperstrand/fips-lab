@@ -8,6 +8,7 @@ from typing import Any
 
 from .capture.btmon import BtmonCapture
 from .capture.iperf import IperfSession
+from .capture.keylog import KeylogCapture
 from .capture.serial_log import SerialLogCapture
 from .config_gen import write_lab_acl, write_resolved_devices
 from .device import Device, make_device
@@ -53,6 +54,7 @@ class LabRunner:
                 self._test_loop()
             self._collect_final_snapshots()
             self._stop_captures()
+            self._collect_keylogs()
             self._run_iperf()
             self._write_analysis("pass")
             return 0
@@ -218,6 +220,21 @@ class LabRunner:
             assert self.run_dir is not None
             result = self.iperf.run()
             write_json(self.run_dir / "iperf3-results.json", result)
+
+    def _collect_keylogs(self) -> None:
+        assert self.run_dir is not None
+        keylog_cfg = (self.scenario.raw.get("actions") or {}).get("capture") or {}
+        if not keylog_cfg.get("keylog"):
+            return
+        devices_with_keylog: dict[str, dict[str, Any]] = {}
+        for alias, cfg in self.resolved_configs.items():
+            if cfg.get("type") == "fips" and cfg.get("keylog_path"):
+                devices_with_keylog[alias] = cfg
+        if not devices_with_keylog:
+            return
+        capture = KeylogCapture(results_dir=self.run_dir, devices=devices_with_keylog)
+        result = capture.collect()
+        write_json(self.run_dir / "keylog-results.json", result)
 
     def _write_analysis(self, status: str, error: str | None = None) -> None:
         if self.run_dir is None:

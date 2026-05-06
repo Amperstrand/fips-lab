@@ -1,7 +1,7 @@
 scenario:
   name: lab-3node-isolated
-  duration_secs: 300
-  description: Run this Mac, the Linux host, and one microfips device as an isolated lab mesh.
+  duration_secs: 600
+  description: Mac + Linux + ESP32 isolated lab mesh, 10 minutes, with btmon and keylog capture.
 
 topology:
   devices:
@@ -17,7 +17,7 @@ topology:
   links:
     - from: mac
       to: linux
-      transport: udp
+      transport: ble
     - from: linux
       to: esp32
       transport: ble
@@ -39,16 +39,15 @@ deploy:
 actions:
   warmup_secs: 30
   metrics:
-    interval_secs: 10
+    interval_secs: 30
     from: [mac, linux]
-    collect: [show_status, show_peers, show_mmp, show_links, show_tree, show_acl]
+    collect: [show_status, show_peers, show_mmp]
   capture:
     serial: true
     btmon:
       enabled: true
       device: linux
-  traffic:
-    enabled: false
+    keylog: true
 
 assertions:
   - type: peer_connected

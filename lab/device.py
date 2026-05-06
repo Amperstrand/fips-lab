@@ -83,6 +83,8 @@ class LocalDevice(Device):
     def run(self, argv: list[str], timeout: int = 30) -> CommandResult:
         if self.dry_run:
             return CommandResult(0, json.dumps({"dry_run": True, "argv": argv}), "")
+        if self.config.get("sudo", False):
+            argv = ["sudo"] + argv
         proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
         return CommandResult(proc.returncode, proc.stdout, proc.stderr)
 
