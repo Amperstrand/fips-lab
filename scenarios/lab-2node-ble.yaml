@@ -1,7 +1,7 @@
 scenario:
-  name: lab-3node-isolated
+  name: lab-2node-ble
   duration_secs: 600
-  description: Mac + Linux + ESP32 isolated lab mesh, 10 minutes, with btmon and keylog capture.
+  description: Mac ↔ Linux BLE mesh, 10 minutes, with deploy restart, btmon, keylog capture, and iperf3.
 
 topology:
   devices:
@@ -11,15 +11,9 @@ topology:
     - id: linux
       inventory_ref: linux-218
       role: fips-controller
-    - id: esp32
-      inventory_ref: esp32-d0wd-01
-      role: microfips-peripheral
   links:
     - from: mac
       to: linux
-      transport: ble
-    - from: linux
-      to: esp32
       transport: ble
 
 isolation:
@@ -27,10 +21,10 @@ isolation:
   deny_unknown_peers: true
   write_peers_allow: true
   write_peers_deny_all: true
-  include_devices: [mac, linux, esp32]
+  include_devices: [mac, linux]
 
 deploy:
-  restart_before_test: false
+  restart_before_test: true
   stop_after_test: false
   keylog: true
   warmup_secs: 30
@@ -43,7 +37,6 @@ actions:
     from: [mac, linux]
     collect: [show_status, show_peers, show_mmp]
   capture:
-    serial: true
     btmon:
       enabled: true
       device: linux
@@ -59,9 +52,3 @@ assertions:
     from: mac
     to: linux
     within_secs: 60
-  - type: peer_connected
-    from: linux
-    to: esp32
-    within_secs: 60
-  - type: no_serial_crash
-    device: esp32

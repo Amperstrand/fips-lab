@@ -99,7 +99,7 @@ class DeployManager:
             env_keylog = str(keylog_path) if keylog and keylog_path else ""
 
             if transport == "local":
-                self._start_local(alias, fips_binary, config_path, env_keylog)
+                self._start_local(alias, cfg, fips_binary, config_path, env_keylog)
             elif transport == "ssh":
                 self._start_ssh(alias, cfg, fips_binary, config_path, env_keylog)
             else:
@@ -108,6 +108,7 @@ class DeployManager:
     def _start_local(
         self,
         alias: str,
+        cfg: dict[str, Any],
         fips_binary: str,
         config_path: str,
         keylog_path: str,
@@ -116,7 +117,12 @@ class DeployManager:
         env = dict(os.environ)
         if keylog_path:
             env["FIPS_NOISE_KEYLOG"] = keylog_path
-        cmd = ["caffeinate", "-i", fips_binary, "--config", config_path]
+        use_sudo = cfg.get("sudo", False)
+        if use_sudo:
+            keylog_env = f"FIPS_NOISE_KEYLOG={keylog_path} " if keylog_path else ""
+            cmd = ["sudo", f"{keylog_env}caffeinate", "-i", fips_binary, "--config", config_path]
+        else:
+            cmd = ["caffeinate", "-i", fips_binary, "--config", config_path]
         log.info("Starting FIPS on %s: %s", alias, " ".join(cmd))
         try:
             subprocess.Popen(

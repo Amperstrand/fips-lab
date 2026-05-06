@@ -16,6 +16,7 @@ def main() -> None:
     parser.add_argument("--duration", type=int, default=None, help="Override scenario duration")
     parser.add_argument("--dry-run", action="store_true", help="Create artifacts without touching devices")
     parser.add_argument("--list", action="store_true", help="List bundled scenarios")
+    parser.add_argument("--publish", action="store_true", help="Publish results to gh-pages after test")
     args = parser.parse_args()
 
     if args.list:
@@ -35,6 +36,7 @@ def main() -> None:
         results_dir=Path(args.results_dir),
         dry_run=args.dry_run,
         duration_override=args.duration,
+        publish=args.publish,
     )
     raise SystemExit(runner.run())
 

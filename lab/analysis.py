@@ -36,6 +36,31 @@ class KeyExchangeInfo:
 
 
 @dataclass
+class RekeyStats:
+    pair: str
+    total_rekeys: int  # link_keys - 1 (initial handshake doesn't count as rekey)
+    rekey_interval_avg_secs: float | None  # duration_secs / max(1, total_rekeys)
+    rekeys_per_hour: float | None  # (total_rekeys / duration_secs) * 3600
+
+
+@dataclass
+class DisconnectEvent:
+    pair: str
+    t: int  # timestamp in secs when disconnect detected
+    reconnected: bool  # did the pair come back before test end?
+
+
+@dataclass
+class KeylogVerification:
+    pair: str
+    local_keys_parsed: int  # from parse_keylog for this device
+    parse_errors: int  # malformed lines
+    unique_peer_pairs: int  # canonicalized peer pairs found
+    decryption_ready: bool  # True if we have keys for both directions
+    note: str  # e.g. "Ready for Wireshark decryption (needs fips-dissector.lua)"
+
+
+@dataclass
 class AssertionResult:
     name: str
     expected: str
@@ -53,6 +78,9 @@ class AnalysisReport:
     peer_metrics: list[PeerMetrics]
     key_exchange: list[KeyExchangeInfo]
     captures: dict
+    rekey_stats: list[RekeyStats]
+    disconnects: list[DisconnectEvent]
+    keylog_verification: list[KeylogVerification]
     assertions: list[AssertionResult]
     memory: dict
 
@@ -323,6 +351,184 @@ def _build_key_exchange(
 
 
 # ---------------------------------------------------------------------------
+# Helpers – rekey stats
+# ---------------------------------------------------------------------------
+
+def _build_rekey_stats(
+    keylog: dict | None,
+    connections: list[dict],
+    duration_secs: int,
+) -> list[RekeyStats]:
+    """Rekey frequency per connected pair from keylog link_keys."""
+    if not keylog or not connections:
+        return []
+
+    dev_keys: dict[str, int] = {}
+    for alias, info in keylog.get("devices", {}).items():
+        if isinstance(info, dict):
+            dev_keys[alias] = info.get("link_keys", 0)
+
+    results: list[RekeyStats] = []
+    for conn in connections:
+        parts = conn["pair"].split(" ↔ ")
+        lk = dev_keys.get(parts[0], 0)
+        if lk == 0 and len(parts) > 1:
+            lk = dev_keys.get(parts[1], 0)
+
+        total_rekeys = max(0, lk - 1)
+        if duration_secs > 0 and total_rekeys > 0:
+            avg_interval = duration_secs / total_rekeys
+            rekeys_per_hour = (total_rekeys / duration_secs) * 3600
+        elif total_rekeys == 0:
+            avg_interval = None
+            rekeys_per_hour = None
+        else:
+            avg_interval = None
+            rekeys_per_hour = None
+
+        results.append(RekeyStats(
+            pair=conn["pair"],
+            total_rekeys=total_rekeys,
+            rekey_interval_avg_secs=avg_interval,
+            rekeys_per_hour=rekeys_per_hour,
+        ))
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Helpers – disconnect detection
+# ---------------------------------------------------------------------------
+
+def _detect_disconnects(
+    timeseries: list[dict],
+    hex_to_alias: dict[str, str],
+) -> list[DisconnectEvent]:
+    """Detect peer disappearances between consecutive timeseries samples.
+
+    A disconnect is when a peer appears in sample N but NOT in sample N+1.
+    If the peer reappears later, mark reconnected=True.
+    """
+    if len(timeseries) < 2:
+        return []
+
+    # {sample_idx: {alias: set(peer_addr)}}
+    sample_peers: list[dict[str, set[str]]] = []
+    for sample in timeseries:
+        dev_peers: dict[str, set[str]] = {}
+        for alias, cmds in sample.get("devices", {}).items():
+            if not isinstance(cmds, dict):
+                continue
+            addrs: set[str] = set()
+            for peer in cmds.get("show_peers", {}).get("peers", []):
+                addr = peer.get("node_addr", "")
+                if addr:
+                    addrs.add(addr)
+            dev_peers[alias] = addrs
+        sample_peers.append(dev_peers)
+
+    events: list[DisconnectEvent] = []
+    seen: set[tuple[str, int]] = set()
+
+    for i in range(len(sample_peers) - 1):
+        curr = sample_peers[i]
+        nxt = sample_peers[i + 1]
+        nxt_t = timeseries[i + 1].get("t", 0)
+
+        for alias, curr_addrs in curr.items():
+            nxt_addrs = nxt.get(alias, set())
+            disappeared = curr_addrs - nxt_addrs
+            for addr in disappeared:
+                peer_alias = hex_to_alias.get(addr, addr[:12])
+                label = _pair_label(alias, peer_alias)
+                key = (label, nxt_t)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                reconnected = any(
+                    addr in sample_peers[j].get(alias, set())
+                    for j in range(i + 2, len(sample_peers))
+                )
+
+                events.append(DisconnectEvent(
+                    pair=label,
+                    t=nxt_t,
+                    reconnected=reconnected,
+                ))
+
+    return events
+
+
+# ---------------------------------------------------------------------------
+# Helpers – keylog verification
+# ---------------------------------------------------------------------------
+
+def _build_keylog_verification(
+    keylog: dict | None,
+    connections: list[dict],
+    run_dir: Path,
+) -> list[KeylogVerification]:
+    """Verify keylog files are parseable and ready for decryption."""
+    if not keylog:
+        return []
+
+    results: list[KeylogVerification] = []
+    for conn in connections:
+        parts = conn["pair"].split(" ↔ ")
+        best: KeylogVerification | None = None
+        for alias in parts:
+            dev_info = keylog.get("devices", {}).get(alias)
+            if not isinstance(dev_info, dict):
+                continue
+
+            link_keys = dev_info.get("link_keys", 0)
+
+            local_keys_parsed = 0
+            parse_errors = 0
+            unique_peer_pairs = 0
+
+            keylog_path = run_dir / f"keylog-{alias}.txt"
+            if keylog_path.exists():
+                try:
+                    from lab.capture.keylog import parse_keylog
+                    parsed = parse_keylog(keylog_path)
+                    local_keys_parsed = len(parsed.valid_entries)
+                    parse_errors = len(parsed.parse_errors)
+                    unique_peer_pairs = len(parsed.peer_pairs)
+                except Exception:
+                    parse_errors = dev_info.get("parse_errors", 0)
+                    local_keys_parsed = link_keys
+
+            decryption_ready = link_keys > 0 and parse_errors == 0
+
+            if decryption_ready:
+                note = "Ready for Wireshark decryption (needs fips-dissector.lua)"
+            elif parse_errors > 0:
+                note = f"Parse errors: {parse_errors}"
+            elif link_keys == 0:
+                note = "No link keys found"
+            else:
+                note = "Incomplete key data"
+
+            entry = KeylogVerification(
+                pair=conn["pair"],
+                local_keys_parsed=local_keys_parsed,
+                parse_errors=parse_errors,
+                unique_peer_pairs=unique_peer_pairs,
+                decryption_ready=decryption_ready,
+                note=note,
+            )
+
+            if best is None or entry.local_keys_parsed > best.local_keys_parsed:
+                best = entry
+
+        if best:
+            results.append(best)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Helpers – captures
 # ---------------------------------------------------------------------------
 
@@ -373,6 +579,7 @@ def _evaluate_assertions(
     key_exchange: list[KeyExchangeInfo],
     expected_links: list[dict[str, str]],
     has_errors: bool,
+    disconnects: list[DisconnectEvent] | None = None,
 ) -> list[AssertionResult]:
     """Evaluate the hardcoded default assertion set."""
     results: list[AssertionResult] = []
@@ -440,6 +647,17 @@ def _evaluate_assertions(
             expected="0 errors",
             actual="errors detected" if has_errors else "0 errors",
             passed=not has_errors,
+        )
+    )
+
+    # --- 5. No disconnects ---
+    disc = disconnects if disconnects is not None else []
+    results.append(
+        AssertionResult(
+            name="No disconnects",
+            expected="0 disconnects",
+            actual=f"{len(disc)} disconnect(s)" if disc else "0 disconnects",
+            passed=len(disc) == 0,
         )
     )
 
@@ -519,6 +737,15 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     # -- key exchange -------------------------------------------------------
     key_exchange = _build_key_exchange(keylog, connections)
 
+    # -- rekey stats --------------------------------------------------------
+    rekey_stats = _build_rekey_stats(keylog, connections, duration_secs)
+
+    # -- disconnect detection -----------------------------------------------
+    disconnects = _detect_disconnects(timeseries, hex_to_alias) if timeseries else []
+
+    # -- keylog verification ------------------------------------------------
+    keylog_verification = _build_keylog_verification(keylog, connections, run_dir)
+
     # -- captures -----------------------------------------------------------
     captures_summary = _build_captures(captures_raw)
 
@@ -531,6 +758,7 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     # -- assertions ---------------------------------------------------------
     assertions = _evaluate_assertions(
         connections, peer_metrics, key_exchange, expected_links, has_errors,
+        disconnects=disconnects,
     )
 
     # -- verdict ------------------------------------------------------------
@@ -545,6 +773,9 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
         peer_metrics=peer_metrics,
         key_exchange=key_exchange,
         captures=captures_summary,
+        rekey_stats=rekey_stats,
+        disconnects=disconnects,
+        keylog_verification=keylog_verification,
         assertions=assertions,
         memory={},  # RSS not available in current artifacts
     )
@@ -565,6 +796,9 @@ def write_analysis(report: AnalysisReport, run_dir: Path) -> None:
         "peer_metrics": [asdict(pm) for pm in report.peer_metrics],
         "key_exchange": [asdict(ke) for ke in report.key_exchange],
         "captures": report.captures,
+        "rekey_stats": [asdict(rs) for rs in report.rekey_stats],
+        "disconnects": [asdict(d) for d in report.disconnects],
+        "keylog_verification": [asdict(kv) for kv in report.keylog_verification],
         "assertions": [asdict(a) for a in report.assertions],
         "memory": report.memory,
     }
@@ -631,6 +865,39 @@ def format_markdown(report: AnalysisReport) -> str:
         size_kb = info.get("size_bytes", 0) / 1024
         lines.append(f"| {ctype} | {info.get('device', '')} | {size_kb:.0f} KB |")
     lines.append("")
+
+    # -- rekey stats --------------------------------------------------------
+    if report.rekey_stats:
+        lines.append("## Rekey Analysis")
+        lines.append("| Pair | Rekeys | Avg Interval | Rekeys/Hour |")
+        lines.append("|------|--------|-------------|-------------|")
+        for rs in report.rekey_stats:
+            interval = f"{rs.rekey_interval_avg_secs:.1f}s" if rs.rekey_interval_avg_secs else "N/A"
+            rph = f"{rs.rekeys_per_hour:.0f}" if rs.rekeys_per_hour else "N/A"
+            lines.append(f"| {rs.pair} | {rs.total_rekeys} | {interval} | {rph} |")
+        lines.append("")
+
+    # -- disconnects --------------------------------------------------------
+    lines.append("## Disconnects")
+    lines.append("| Pair | Time | Reconnected |")
+    lines.append("|------|------|-------------|")
+    if report.disconnects:
+        for d in report.disconnects:
+            rc = "✅" if d.reconnected else "❌"
+            lines.append(f"| {d.pair} | {d.t}s | {rc} |")
+    else:
+        lines.append("| *(none)* | | |")
+    lines.append("")
+
+    # -- keylog verification ------------------------------------------------
+    if report.keylog_verification:
+        lines.append("## Keylog Verification")
+        lines.append("| Pair | Keys Parsed | Parse Errors | Decryption Ready |")
+        lines.append("|------|------------|-------------|-----------------|")
+        for kv in report.keylog_verification:
+            ready = "✅" if kv.decryption_ready else "❌"
+            lines.append(f"| {kv.pair} | {kv.local_keys_parsed} | {kv.parse_errors} | {ready} |")
+        lines.append("")
 
     # -- assertions ---------------------------------------------------------
     lines.append("## Assertions")

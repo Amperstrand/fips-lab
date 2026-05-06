@@ -29,12 +29,14 @@ class LabRunner:
         results_dir: Path,
         dry_run: bool = False,
         duration_override: int | None = None,
+        publish: bool = False,
     ):
         self.scenario = scenario
         self.inventory = inventory
         self.results_dir = results_dir
         self.dry_run = dry_run
         self.duration_override = duration_override
+        self.publish = publish
         self.run_dir: Path | None = None
         self.devices: dict[str, Device] = {}
         self.resolved_configs: dict[str, dict[str, Any]] = {}
@@ -61,6 +63,8 @@ class LabRunner:
             self._run_iperf()
             self._run_analysis()
             self._deploy_cleanup()
+            if self.publish:
+                self._publish_results()
             return 0
         except Exception as exc:
             log.exception("Scenario failed: %s", exc)
@@ -281,6 +285,20 @@ class LabRunner:
         assert self.run_dir is not None
         manager = DeployManager(self.devices, self.resolved_configs, self.run_dir)
         manager.stop_all()
+
+    def _publish_results(self) -> None:
+        assert self.run_dir is not None
+        repo_root = Path(__file__).resolve().parent.parent
+        script_path = repo_root / "scripts" / "publish-report.sh"
+        if not script_path.exists():
+            log.warning("Publish script not found at %s", script_path)
+            return
+        log.info("Publishing results from %s", self.run_dir)
+        result = subprocess.run(["bash", str(script_path), str(self.run_dir)], capture_output=True, text=True, check=False)
+        if result.returncode == 0:
+            log.info("Publish succeeded")
+        else:
+            log.error("Publish failed: %s", result.stderr.strip() or result.stdout.strip())
 
 
 def _git_metadata(path: Path) -> dict[str, str | None]:
