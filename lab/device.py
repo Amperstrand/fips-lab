@@ -58,13 +58,20 @@ class Device:
         if socket:
             argv.extend(["--socket", str(socket)])
         argv.extend(parts)
-        result = self.run(argv, timeout=15)
-        if result.returncode != 0:
-            return {"error": result.stderr.strip() or result.stdout.strip(), "command": command}
-        try:
-            return json.loads(result.stdout)
-        except json.JSONDecodeError:
-            return {"raw": result.stdout, "command": command}
+        for attempt in range(3):
+            result = self.run(argv, timeout=15)
+            if result.returncode != 0:
+                err = result.stderr.strip() or result.stdout.strip()
+                if "Resource temporarily unavailable" in err and attempt < 2:
+                    import time
+                    time.sleep(1)
+                    continue
+                return {"error": err, "command": command}
+            try:
+                return json.loads(result.stdout)
+            except json.JSONDecodeError:
+                return {"raw": result.stdout, "command": command}
+        return {"error": "max retries exceeded", "command": command}
 
     def identity_npub(self) -> str | None:
         identity = self.config.get("identity") or {}

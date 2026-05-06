@@ -6,6 +6,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .capture.btmon import BtmonCapture
+from .capture.iperf import IperfSession
+from .capture.serial_log import SerialLogCapture
 from .config_gen import write_lab_acl, write_resolved_devices
 from .device import Device, make_device
 from .inventory import Inventory
@@ -32,6 +35,8 @@ class LabRunner:
         self.run_dir: Path | None = None
         self.devices: dict[str, Device] = {}
         self.resolved_configs: dict[str, dict[str, Any]] = {}
+        self.captures: list[BtmonCapture | SerialLogCapture] = []
+        self.iperf: IperfSession | None = None
 
     def run(self) -> int:
         self.run_dir = create_run_dir(self.results_dir, self.scenario.name)
@@ -41,10 +46,14 @@ class LabRunner:
             self._resolve_devices()
             self._write_static_artifacts()
             self._setup_isolation()
+            self._setup_captures()
+            self._start_captures()
             self._collect_initial_snapshots()
             if not self.dry_run:
                 self._test_loop()
             self._collect_final_snapshots()
+            self._stop_captures()
+            self._run_iperf()
             self._write_analysis("pass")
             return 0
         except Exception as exc:
@@ -140,6 +149,75 @@ class LabRunner:
             series.append(point)
             write_json(self.run_dir / "metrics-timeseries.json", series)
             time.sleep(interval)
+
+    def _setup_captures(self) -> None:
+        assert self.run_dir is not None
+        capture_cfg = (self.scenario.raw.get("actions") or {}).get("capture") or {}
+        if not capture_cfg:
+            return
+
+        for alias, device_cfg in self.resolved_configs.items():
+            transport = device_cfg.get("transport", "")
+
+            if capture_cfg.get("btmon") and transport == "ssh" and device_cfg.get("platform") == "linux":
+                adapter = device_cfg.get("ble_adapter", "hci0")
+                self.captures.append(BtmonCapture(
+                    device_alias=alias,
+                    host=device_cfg.get("host", ""),
+                    user=device_cfg.get("user", ""),
+                    adapter=adapter,
+                    results_dir=self.run_dir,
+                    enabled=not self.dry_run,
+                ))
+
+            if capture_cfg.get("serial") and transport in ("serial", "serial-via-ssh"):
+                self.captures.append(SerialLogCapture(
+                    device_alias=alias,
+                    transport=transport,
+                    host=device_cfg.get("host", "") if transport == "serial-via-ssh" else "",
+                    user=device_cfg.get("user", "") if transport == "serial-via-ssh" else "",
+                    serial_port=device_cfg.get("serial_port", ""),
+                    baud_rate=device_cfg.get("baud_rate", 115200),
+                    results_dir=self.run_dir,
+                    enabled=not self.dry_run,
+                ))
+
+        if capture_cfg.get("iperf3"):
+            server_cfg = next(
+                (c for c in self.resolved_configs.values()
+                 if c.get("transport") == "ssh" and c.get("platform") == "linux"),
+                None,
+            )
+            if server_cfg:
+                self.iperf = IperfSession(
+                    enabled=not self.dry_run,
+                    server_host=server_cfg.get("host", ""),
+                    server_user=server_cfg.get("user", ""),
+                    results_dir=self.run_dir,
+                    duration_tcp=capture_cfg.get("iperf3_tcp_duration", 10),
+                    duration_udp=capture_cfg.get("iperf3_udp_duration", 10),
+                    udp_rate=capture_cfg.get("iperf3_udp_rate", "50K"),
+                    tcp_window=capture_cfg.get("iperf3_tcp_window", "8K"),
+                )
+
+    def _start_captures(self) -> None:
+        for cap in self.captures:
+            cap.start()
+
+    def _stop_captures(self) -> None:
+        assert self.run_dir is not None
+        capture_results: dict[str, Any] = {}
+        for cap in self.captures:
+            info = cap.stop()
+            capture_results[info.get("device", cap.device_alias)] = info
+        if capture_results:
+            write_json(self.run_dir / "capture-results.json", capture_results)
+
+    def _run_iperf(self) -> None:
+        if self.iperf and self.iperf.enabled:
+            assert self.run_dir is not None
+            result = self.iperf.run()
+            write_json(self.run_dir / "iperf3-results.json", result)
 
     def _write_analysis(self, status: str, error: str | None = None) -> None:
         if self.run_dir is None:
