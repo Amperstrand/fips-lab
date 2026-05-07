@@ -350,6 +350,56 @@ def generate_chart_rekeys(run_dir: Path, timeseries: list[dict[str, Any]]) -> No
     (run_dir / "chart-rekeys.svg").write_text(svg)
 
 
+def generate_chart_rssi(run_dir: Path) -> None:
+    """Generate RSSI-over-time chart from rssi-timeseries-*.json files."""
+    rssi_files = sorted(run_dir.glob("rssi-timeseries-*.json"))
+    if not rssi_files:
+        return
+
+    all_series: dict[str, list[tuple[float, float]]] = {}
+    for path in rssi_files:
+        alias = path.stem.replace("rssi-timeseries-", "")
+        with open(path) as f:
+            samples = json.load(f)
+        if not samples:
+            continue
+        t0 = samples[0]["t"]
+        all_series[alias] = [(s["t"] - t0, s["rssi"]) for s in samples]
+
+    if not all_series:
+        return
+
+    all_x = [x for pts in all_series.values() for x, _ in pts]
+    all_y = [y for pts in all_series.values() for _, y in pts]
+    if not all_x or not all_y:
+        return
+    x_lo, x_hi = min(all_x), max(all_x)
+    y_lo = min(all_y) - 3
+    y_hi = max(all_y) + 3
+    if y_lo > -10:
+        y_lo = -10
+
+    svg = _svg_header("BLE RSSI over Time")
+    svg += _svg_axes(x_lo, x_hi, y_lo, y_hi, "Time (s)", "RSSI (dBm)", x_fmt="{:.0f}")
+
+    for i, (label, points) in enumerate(all_series.items()):
+        color = _COLORS[i % len(_COLORS)]
+        svg += _polyline(points, x_lo, x_hi, y_lo, y_hi, color, label)
+
+    ml, mt, mb = _MARGINS["left"], _MARGINS["top"], _MARGINS["bottom"]
+    ch = _HEIGHT - mt - mb
+    ly = mt + ch + 30
+    lx = ml
+    for i, label in enumerate(all_series):
+        color = _COLORS[i % len(_COLORS)]
+        svg += f'<rect x="{lx}" y="{ly - 8}" width="12" height="12" fill="{color}" rx="2"/>'
+        svg += f'<text x="{lx + 16}" y="{ly + 2}" font-size="10" fill="#444">{label}</text>'
+        lx += len(label) * 7 + 30
+
+    svg += "\n</svg>"
+    (run_dir / "chart-rssi.svg").write_text(svg)
+
+
 def generate_charts(run_dir: Path) -> None:
     ts_path = run_dir / "metrics-timeseries.json"
     if not ts_path.exists():
@@ -364,3 +414,4 @@ def generate_charts(run_dir: Path) -> None:
     generate_chart_rtt(run_dir, timeseries)
     generate_chart_peers(run_dir, timeseries)
     generate_chart_rekeys(run_dir, timeseries)
+    generate_chart_rssi(run_dir)

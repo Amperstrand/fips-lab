@@ -44,6 +44,7 @@ class LabRunner:
         self.captures: list[BtmonCapture | SerialLogCapture] = []
         self.rssi_collectors: list[RssiCollector] = []
         self.iperf: IperfSession | None = None
+        self._defer_rssi: bool = False
 
     def run(self) -> int:
         self.run_dir = create_run_dir(self.results_dir, self.scenario.name)
@@ -57,6 +58,7 @@ class LabRunner:
             self._start_captures()
             self._deploy()
             self._collect_initial_snapshots()
+            self._start_rssi_if_ready()
             if not self.dry_run:
                 self._test_loop()
             self._collect_final_snapshots()
@@ -217,13 +219,11 @@ class LabRunner:
                 )
 
         if capture_cfg.get("rssi"):
-            self._setup_rssi_collectors()
+            self._defer_rssi = True
 
     def _start_captures(self) -> None:
         for cap in self.captures:
             cap.start()
-        for rc in self.rssi_collectors:
-            rc.start()
 
     def _stop_captures(self) -> None:
         assert self.run_dir is not None
@@ -259,6 +259,13 @@ class LabRunner:
                 enabled=not self.dry_run,
             ))
 
+    def _start_rssi_if_ready(self) -> None:
+        if not getattr(self, "_defer_rssi", False):
+            return
+        self._setup_rssi_collectors()
+        for rc in self.rssi_collectors:
+            rc.start()
+
     def _discover_ble_peer_addr(self, alias: str, cfg: dict[str, Any]) -> str:
         device = self.devices.get(alias)
         if not device or device.type != "fips":
@@ -273,10 +280,31 @@ class LabRunner:
         return ""
 
     def _run_iperf(self) -> None:
-        if self.iperf and self.iperf.enabled:
+        if not self.iperf or not self.iperf.enabled:
+            return
+        if self._is_tun_disabled():
+            log.info("iperf3: TUN disabled, skipping throughput tests")
             assert self.run_dir is not None
-            result = self.iperf.run()
-            write_json(self.run_dir / "iperf3-results.json", result)
+            write_json(self.run_dir / "iperf3-results.json", {
+                "enabled": True, "skipped": True, "reason": "TUN disabled",
+                "sessions": [],
+            })
+            return
+        assert self.run_dir is not None
+        result = self.iperf.run()
+        write_json(self.run_dir / "iperf3-results.json", result)
+
+    def _is_tun_disabled(self) -> bool:
+        for alias, cfg in self.resolved_configs.items():
+            if cfg.get("platform") != "linux":
+                continue
+            device = self.devices.get(alias)
+            if not device or device.type != "fips":
+                continue
+            status = device.query("show_status")
+            if isinstance(status, dict) and status.get("tun_state") == "disabled":
+                return True
+        return False
 
     def _collect_keylogs(self) -> None:
         assert self.run_dir is not None
@@ -335,6 +363,7 @@ class LabRunner:
         if warmup > 0:
             log.info("Warmup: waiting %ds for BLE discovery", warmup)
             time.sleep(warmup)
+        self._start_rssi_if_ready()
 
     def _generate_charts(self) -> None:
         if self.run_dir is None:
