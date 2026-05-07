@@ -119,8 +119,10 @@ class DeployManager:
             env["FIPS_NOISE_KEYLOG"] = keylog_path
         use_sudo = cfg.get("sudo", False)
         if use_sudo:
-            keylog_env = f"FIPS_NOISE_KEYLOG={keylog_path} " if keylog_path else ""
-            cmd = ["sudo", f"{keylog_env}caffeinate", "-i", fips_binary, "--config", config_path]
+            cmd = ["sudo"]
+            if keylog_path:
+                cmd.append(f"FIPS_NOISE_KEYLOG={keylog_path}")
+            cmd.extend(["caffeinate", "-i", fips_binary, "--config", config_path])
         else:
             cmd = ["caffeinate", "-i", fips_binary, "--config", config_path]
         log.info("Starting FIPS on %s: %s", alias, " ".join(cmd))
