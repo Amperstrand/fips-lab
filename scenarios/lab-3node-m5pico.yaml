@@ -1,0 +1,67 @@
+scenario:
+  name: lab-3node-m5pico
+  duration_secs: 600
+  description: Mac + Linux + M5 Pico (ESP32) isolated lab mesh, 10 minutes, with deploy restart, btmon, keylog capture, and iperf3.
+
+topology:
+  devices:
+    - id: mac
+      inventory_ref: macbook-local
+      role: fips-controller
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+    - id: m5pico
+      inventory_ref: esp32-m5pico
+      role: microfips-peripheral
+  links:
+    - from: mac
+      to: linux
+      transport: ble
+    - from: linux
+      to: m5pico
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [mac, linux, m5pico]
+
+deploy:
+  restart_before_test: true
+  stop_after_test: false
+  keylog: true
+  warmup_secs: 30
+  readiness_timeout_secs: 60
+
+actions:
+  warmup_secs: 30
+  metrics:
+    interval_secs: 30
+    from: [mac, linux]
+    collect: [show_status, show_peers, show_mmp]
+  capture:
+    serial: true
+    btmon:
+      enabled: true
+      device: linux
+    keylog: true
+    iperf3: true
+    iperf3_tcp_duration: 10
+    iperf3_udp_duration: 10
+    iperf3_udp_rate: "50K"
+    iperf3_tcp_window: "8K"
+
+assertions:
+  - type: peer_connected
+    from: mac
+    to: linux
+    within_secs: 60
+  - type: peer_connected
+    from: linux
+    to: m5pico
+    within_secs: 120
+  - type: no_serial_crash
+    device: m5pico

@@ -89,3 +89,18 @@ devices:
         chip: esp32s3
         baud: 921600
         address: "0x0"
+
+  esp32-m5pico:
+    type: microfips
+    platform: esp32
+    transport: serial-via-ssh
+    role_tags: [ble, microcontroller, remote]
+    ssh_host: "218"
+    ssh_user: ubuntu
+    serial_port: /dev/ttyUSB0
+    baud_rate: 115200
+    ble_addr: "00:00:00:00:00:00"  # TODO: discover with ssh 218 "sudo hcitool lescan"
+    model: m5stack-pico
+    identity:
+      source: insecure-mac-hash
+      npub: null

@@ -44,6 +44,18 @@ json_number() {
     | sed "s/.*\"${key}\"[[:space:]]*:[[:space:]]*//"
 }
 
+json_nested_string() {
+  local file="$1" parent="$2" key="$3"
+  python3 -c "
+import json, sys
+with open('${file}') as f:
+    d = json.load(f)
+v = d.get('${parent}', {}).get('${key}')
+if v is not None:
+    print(v)
+" 2>/dev/null
+}
+
 # ── Read metadata from metadata.json ─────────────────────────────────
 
 COMMIT="$(json_string "$RUN_DIR/metadata.json" commit)"
@@ -58,13 +70,18 @@ TIMESTAMP="$(json_string "$RUN_DIR/metadata.json" timestamp || true)"
 DURATION_SECS="$(json_number "$RUN_DIR/metadata.json" duration_secs || true)"
 DURATION_SECS="${DURATION_SECS:-0}"
 
+FIPS_COMMIT="$(json_nested_string "$RUN_DIR/metadata.json" fips_git commit || true)"
+FIPS_COMMIT="${FIPS_COMMIT:-$COMMIT}"
+FIPS_BRANCH="$(json_nested_string "$RUN_DIR/metadata.json" fips_git branch || true)"
+FIPS_DIRTY="$(json_nested_string "$RUN_DIR/metadata.json" fips_git dirty || true)"
+
 if [ -z "$TIMESTAMP" ]; then
   TIMESTAMP="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 fi
 
 DIR_TIMESTAMP="$(echo "$TIMESTAMP" | sed 's/[:+ ]/-/g' | sed 's/[^0-9T.Z-]//g')"
 
-SHORT="${COMMIT:0:12}"
+SHORT="${FIPS_COMMIT:0:12}"
 KEEP="${FIPS_LAB_KEEP_REPORTS:-50}"
 
 # ── Read analysis.json (optional) ────────────────────────────────────
@@ -85,7 +102,7 @@ if [ -f "$RUN_DIR/analysis.json" ]; then
   fi
 fi
 
-echo "==> Publishing report for commit ${SHORT} scenario=${SCENARIO} verdict=${VERDICT}..."
+echo "==> Publishing report for FIPS commit ${SHORT} branch=${FIPS_BRANCH:-?} scenario=${SCENARIO} verdict=${VERDICT}..."
 
 # ── Clone or create gh-pages ─────────────────────────────────────────
 
@@ -277,6 +294,7 @@ generate_dashboard() {
       [ ! -f "$meta_json" ] && continue
 
       local r_scenario r_timestamp r_duration r_verdict r_assert_total r_assert_passed
+      local r_fips_commit r_fips_branch
 
       r_scenario="$(json_string "$meta_json" scenario || true)"
       r_timestamp="$(json_string "$meta_json" timestamp || true)"
@@ -284,6 +302,10 @@ generate_dashboard() {
 
       r_scenario="${r_scenario:-unknown}"
       r_duration="${r_duration:-0}"
+
+      r_fips_commit="$(json_nested_string "$meta_json" fips_git commit || true)"
+      r_fips_commit="${r_fips_commit:-$(json_string "$meta_json" commit || true)}"
+      r_fips_branch="$(json_nested_string "$meta_json" fips_git branch || true)"
 
       r_verdict="N/A"
       r_assert_total="0"
@@ -303,7 +325,7 @@ generate_dashboard() {
       local sort_ts="${r_timestamp:-$ts_name}"
       sort_ts="$(echo "$sort_ts" | tr -d ':Z' | sed 's/T/ /')"
 
-      echo "${sort_ts}|${hash_name}|${ts_name}|${r_scenario}|${r_timestamp}|${r_duration}|${r_verdict}|${r_assert_total}|${r_assert_passed}" >> "$runs_file"
+      echo "${sort_ts}|${hash_name}|${ts_name}|${r_scenario}|${r_timestamp}|${r_duration}|${r_verdict}|${r_assert_total}|${r_assert_passed}|${r_fips_commit}|${r_fips_branch}" >> "$runs_file"
     done
   done
 
@@ -361,10 +383,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .commit-header .hash{font-family:"SF Mono",SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:1rem;font-weight:600}
 .commit-header .hash a{color:#1f4068;text-decoration:none}
 .commit-header .hash a:hover{text-decoration:underline}
+.branch-badge{display:inline-block;font-size:.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#e8f0fe;color:#1f4068;letter-spacing:.3px;vertical-align:middle}
 .runs{padding:.5rem 0}
 .run-row{display:grid;grid-template-columns:170px 150px 70px 80px 120px 1fr;align-items:center;padding:.65rem 1.5rem;border-bottom:1px solid #f5f5f5;font-size:.875rem;gap:.5rem}
 .run-row:last-child{border-bottom:none}
 .run-row:hover{background:#fafbfc}
+.chart-row{display:flex;gap:1rem;padding:.5rem 1.5rem 1rem;background:#fafbfc;border-bottom:1px solid #eee;flex-wrap:wrap}
+.chart-item{flex:1;min-width:260px;max-width:420px}
+.chart-item img{width:100%;height:auto}
 .run-time{color:#555;font-variant-numeric:tabular-nums}
 .run-scenario{font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.8rem;color:#444}
 .verdict{display:inline-block;font-size:.75rem;font-weight:600;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.3px;text-align:center}
@@ -407,16 +433,24 @@ DASHHEAD
       local short_hash="${hash_name:0:12}"
       local commit_url="https://github.com/Amperstrand/fips/commit/${hash_name}"
 
+      local first_line
+      first_line="$(grep "|${hash_name}|" "$runs_file" | sort -t'|' -k1 -r | head -1)"
+      local group_branch
+      group_branch="$(echo "$first_line" | cut -d'|' -f11)"
+
       echo '<div class="commit-group">' >> "$dash_file"
       echo '<div class="commit-header">' >> "$dash_file"
-      echo "<span class=\"hash\"><a href=\"${commit_url}\">${short_hash}</a></span>" >> "$dash_file"
+      echo "<span class=\"hash\"><a href=\"${commit_url}\">${hash_name}</a></span>" >> "$dash_file"
+      if [ -n "$group_branch" ]; then
+        echo "<span class=\"branch-badge\">${group_branch}</span>" >> "$dash_file"
+      fi
       echo '</div>' >> "$dash_file"
 
       # Table header for runs
       echo '<div class="run-header"><span>Timestamp</span><span>Scenario</span><span>Duration</span><span>Verdict</span><span>Assertions</span><span>Details</span></div>' >> "$dash_file"
       echo '<div class="runs">' >> "$dash_file"
 
-      grep "|${hash_name}|" "$runs_file" | sort -t'|' -k1 -r | while IFS='|' read -r _ _ ts_name r_scenario r_timestamp r_duration r_verdict r_assert_total r_assert_passed; do
+      grep "|${hash_name}|" "$runs_file" | sort -t'|' -k1 -r | while IFS='|' read -r _ _ ts_name r_scenario r_timestamp r_duration r_verdict r_assert_total r_assert_passed r_fips_commit r_fips_branch; do
         local display_time
         if [ -n "$r_timestamp" ]; then
           display_time="$(format_timestamp "$r_timestamp")"
@@ -467,12 +501,32 @@ DASHHEAD
 
         echo "<div class=\"run-row\">" >> "$dash_file"
         echo "<span class=\"run-time\">${display_time}</span>" >> "$dash_file"
-        echo "<span class=\"run-scenario\">${r_scenario}</span>" >> "$dash_file"
+        echo "<span class=\"run-scenario\"><strong>${r_scenario}</strong></span>" >> "$dash_file"
         echo "<span>${duration_display}</span>" >> "$dash_file"
         echo "<span class=\"verdict ${verdict_class}\">${verdict_display}</span>" >> "$dash_file"
         echo "<span class=\"assertions\">${assertions_display}</span>" >> "$dash_file"
         echo "<span class=\"run-link\"><a href=\"${report_path}\">${report_label}</a></span>" >> "$dash_file"
         echo "</div>" >> "$dash_file"
+
+        local chart_rtt="$reports_dir/${hash_name}/${ts_name}/chart-rtt.svg"
+        local chart_peers="$reports_dir/${hash_name}/${ts_name}/chart-peers.svg"
+        local chart_rekeys="$reports_dir/${hash_name}/${ts_name}/chart-rekeys.svg"
+        local has_charts=false
+        [ -f "$chart_rtt" ] || [ -f "$chart_peers" ] || [ -f "$chart_rekeys" ] && has_charts=true
+
+        if $has_charts; then
+          echo '<div class="chart-row">' >> "$dash_file"
+          if [ -f "$chart_rtt" ]; then
+            echo "<div class=\"chart-item\"><img src=\"reports/${hash_name}/${ts_name}/chart-rtt.svg\" alt=\"RTT Chart\" loading=\"lazy\"/></div>" >> "$dash_file"
+          fi
+          if [ -f "$chart_peers" ]; then
+            echo "<div class=\"chart-item\"><img src=\"reports/${hash_name}/${ts_name}/chart-peers.svg\" alt=\"Peer Count Chart\" loading=\"lazy\"/></div>" >> "$dash_file"
+          fi
+          if [ -f "$chart_rekeys" ]; then
+            echo "<div class=\"chart-item\"><img src=\"reports/${hash_name}/${ts_name}/chart-rekeys.svg\" alt=\"Rekey Events Chart\" loading=\"lazy\"/></div>" >> "$dash_file"
+          fi
+          echo '</div>' >> "$dash_file"
+        fi
       done
 
       echo '</div>' >> "$dash_file"
@@ -508,7 +562,7 @@ generate_dashboard
 # ── Commit and push ──────────────────────────────────────────────────
 
 git add -A
-git commit -m "report: ${SHORT} ${DIR_TIMESTAMP}" || true
+git commit -m "report: fips-${SHORT} ${DIR_TIMESTAMP}" || true
 
 echo "==> Pushing to gh-pages..."
 git push -f origin gh-pages 2>&1

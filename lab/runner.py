@@ -15,7 +15,7 @@ from .config_gen import write_lab_acl, write_resolved_devices
 from .deploy import DeployManager
 from .device import Device, make_device
 from .inventory import Inventory
-from .results import copy_scenario, create_run_dir, now_iso, write_json
+from .results import copy_scenario, create_run_dir, generate_charts, now_iso, write_json
 from .scenario import Scenario
 
 log = logging.getLogger(__name__)
@@ -62,6 +62,7 @@ class LabRunner:
             self._collect_keylogs()
             self._run_iperf()
             self._run_analysis()
+            self._generate_charts()
             self._deploy_cleanup()
             if self.publish:
                 self._publish_results()
@@ -102,6 +103,7 @@ class LabRunner:
             "inventory_path": str(self.inventory.path),
             "lab": self.inventory.lab,
             "git": _git_metadata(Path.cwd()),
+            "fips_git": _fips_git_metadata(self.resolved_configs),
             "devices": {
                 alias: {
                     "inventory_ref": config.get("inventory_ref"),
@@ -276,6 +278,11 @@ class LabRunner:
             log.info("Warmup: waiting %ds for BLE discovery", warmup)
             time.sleep(warmup)
 
+    def _generate_charts(self) -> None:
+        if self.run_dir is None:
+            return
+        generate_charts(self.run_dir)
+
     def _deploy_cleanup(self) -> None:
         deploy_cfg = self.scenario.raw.get("deploy") or {}
         if not deploy_cfg.get("stop_after_test"):
@@ -311,3 +318,61 @@ def _git_metadata(path: Path) -> dict[str, str | None]:
         }
     except Exception:
         return {"commit": None, "dirty": None}
+
+
+def _fips_git_metadata(resolved_configs: dict[str, dict[str, Any]]) -> dict[str, str | None]:
+    """Extract git metadata from the FIPS source repo.
+
+    Looks for the FIPS repo path from device configs:
+    1. ``repo_path`` field (e.g. Linux remote)
+    2. ``fips_binary`` field — strips ``/target/release/fips`` to find the repo root
+    3. Falls back to common sibling directory ``../fips`` relative to fips-lab
+
+    Only local paths are queried (not SSH remotes).
+    """
+    fips_path: Path | None = None
+    for config in resolved_configs.values():
+        transport = config.get("transport", "")
+        if transport in ("ssh", "serial-via-ssh"):
+            continue
+        repo_path = config.get("repo_path")
+        if repo_path:
+            candidate = Path(repo_path)
+            if (candidate / ".git").exists():
+                fips_path = candidate
+                break
+        fips_binary = config.get("fips_binary")
+        if fips_binary:
+            candidate = Path(fips_binary).parent.parent.parent
+            if (candidate / ".git").exists():
+                fips_path = candidate
+                break
+
+    if fips_path is None:
+        sibling = Path(__file__).resolve().parent.parent.parent / "fips"
+        if (sibling / ".git").exists():
+            fips_path = sibling
+
+    if fips_path is None:
+        return {"commit": None, "branch": None, "dirty": None}
+
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=fips_path,
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=fips_path,
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=fips_path,
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        return {
+            "commit": commit.stdout.strip() if commit.returncode == 0 else None,
+            "branch": branch.stdout.strip() if branch.returncode == 0 else None,
+            "dirty": "yes" if dirty.stdout.strip() else "no",
+        }
+    except Exception:
+        return {"commit": None, "branch": None, "dirty": None}
