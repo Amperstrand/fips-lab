@@ -30,6 +30,7 @@ class IperfSession:
     duration_udp: int = 10
     udp_rate: str = "50K"
     tcp_window: str = "8K"
+    fipsctl_path: str = ""
 
     def _ssh_target(self) -> str:
         if self.server_user:
@@ -46,7 +47,8 @@ class IperfSession:
         if self.server_ipv6:
             return self.server_ipv6
         # Try reading from fipsctl
-        result = self._ssh("sudo fipsctl show status 2>/dev/null")
+        fipsctl = self.fipsctl_path or "fipsctl"
+        result = self._ssh(f"sudo {fipsctl} show status 2>/dev/null")
         if result.returncode == 0:
             try:
                 status = json.loads(result.stdout)
@@ -56,7 +58,7 @@ class IperfSession:
             except json.JSONDecodeError:
                 pass
         # Fallback: read from fips0 interface
-        result = self._ssh("ip -6 addr show fips0 scope global 2>/dev/null | grep -oP 'inet6 \\K[^/]+'")
+        result = self._ssh("ip -6 addr show fips0 scope global 2>/dev/null | grep inet6 | awk '{print $2}' | cut -d/ -f1 | head -1")
         return result.stdout.strip()
 
     def _run_client(self, args: list[str], label: str, timeout: int = 60) -> dict[str, Any]:

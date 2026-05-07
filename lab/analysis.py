@@ -83,6 +83,7 @@ class AnalysisReport:
     keylog_verification: list[KeylogVerification]
     assertions: list[AssertionResult]
     memory: dict
+    decryption_summary: dict | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -749,6 +750,9 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     # -- captures -----------------------------------------------------------
     captures_summary = _build_captures(captures_raw)
 
+    # -- decryption summary -------------------------------------------------
+    decryption_summary = _load_json(run_dir / "decryption-summary.json")
+
     # -- scenario links (for connectivity assertions) ----------------------
     expected_links = _parse_scenario_links(run_dir / "scenario.yaml")
 
@@ -778,6 +782,7 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
         keylog_verification=keylog_verification,
         assertions=assertions,
         memory={},  # RSS not available in current artifacts
+        decryption_summary=decryption_summary,
     )
 
 
@@ -801,6 +806,7 @@ def write_analysis(report: AnalysisReport, run_dir: Path) -> None:
         "keylog_verification": [asdict(kv) for kv in report.keylog_verification],
         "assertions": [asdict(a) for a in report.assertions],
         "memory": report.memory,
+        "decryption_summary": report.decryption_summary,
     }
     json_path = run_dir / "analysis.json"
     json_path.write_text(json.dumps(json_data, indent=2) + "\n", encoding="utf-8")
@@ -915,6 +921,23 @@ def format_markdown(report: AnalysisReport) -> str:
         lines.append("|--------|-----|")
         for device, rss in report.memory.items():
             lines.append(f"| {device} | {rss} |")
+        lines.append("")
+
+    # -- decryption summary -------------------------------------------------
+    if report.decryption_summary:
+        lines.append("## BLE Capture Decryption")
+        ds = report.decryption_summary
+        lines.append(f"- **Capture**: `{ds.get('capture_file', '')}`")
+        lines.append(f"- **Filter**: {ds.get('filter_method', '')}")
+        lines.append(f"- **FIPS L2CAP frames**: {ds.get('fips_l2cap_frames', 0)}")
+        dec = ds.get("decryption", {})
+        lines.append(f"- **Decrypted**: {dec.get('decrypted_successfully', 0)}/{dec.get('total_attempted', 0)}")
+        if msg_types := ds.get("link_messages"):
+            lines.append("")
+            lines.append("| Message Type | Count |")
+            lines.append("|-------------|-------|")
+            for name, info in sorted(msg_types.items(), key=lambda x: x[1].get("type_id", -1)):
+                lines.append(f"| {name} | {info.get('count', 0)} |")
         lines.append("")
 
     return "\n".join(lines)

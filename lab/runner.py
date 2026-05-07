@@ -62,6 +62,7 @@ class LabRunner:
             self._collect_keylogs()
             self._run_iperf()
             self._run_analysis()
+            self._run_btsnoop_decrypt()
             self._generate_charts()
             self._deploy_cleanup()
             if self.publish:
@@ -211,6 +212,7 @@ class LabRunner:
                     duration_udp=capture_cfg.get("iperf3_udp_duration", 10),
                     udp_rate=capture_cfg.get("iperf3_udp_rate", "50K"),
                     tcp_window=capture_cfg.get("iperf3_tcp_window", "8K"),
+                    fipsctl_path=server_cfg.get("fipsctl_path", ""),
                 )
 
     def _start_captures(self) -> None:
@@ -253,6 +255,18 @@ class LabRunner:
         report = analyze_run(self.run_dir)
         write_analysis_report(report, self.run_dir)
         log.info("Analysis: verdict=%s", report.verdict)
+
+    def _run_btsnoop_decrypt(self) -> None:
+        """Post-test: decrypt btsnoop capture using keylog keys."""
+        if self.run_dir is None:
+            return
+        try:
+            from lab.capture.btsnoop_decrypt import decrypt_btsnoop_capture
+            decrypt_btsnoop_capture(self.run_dir)
+        except ImportError:
+            log.info("cryptography package not available, skipping btsnoop decryption")
+        except Exception as exc:
+            log.warning("btsnoop decryption failed: %s", exc)
 
     def _write_fallback_analysis(self, error: str) -> None:
         if self.run_dir is None:
