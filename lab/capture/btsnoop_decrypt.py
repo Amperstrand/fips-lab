@@ -25,6 +25,7 @@ log = logging.getLogger(__name__)
 BTSNOOP_MAGIC = b"btsnoop\x00"
 BTSNOOP_VERSION = 1
 HCI_UART_DATALINK = 1002
+HCI_MONITOR_DATALINK = 2001  # btmon monitor mode
 
 # HCI packet types (from flags field bit 3-8, but HCI_UART uses first byte)
 HCI_ACL_DATA = 0x02
@@ -35,6 +36,10 @@ PB_CONTINUATION = 0x01
 
 # L2CAP signaling CID
 L2CAP_SIGNALLING_CID = 0x0001
+L2CAP_ATT_CID = 0x0004
+L2CAP_ATT_BLE_CID = 0x0005
+L2CAP_SMP_CID = 0x0006
+L2CAP_DYNAMIC_CID_MIN = 0x0040
 
 # L2CAP signalling command codes
 L2CAP_CONN_REQ = 0x02
@@ -87,6 +92,7 @@ class BtsnoopRecord:
     original_len: int
     drops: int
     timestamp_us: int
+    record_flags: int = 0  # raw flags from btsnoop record (for monitor mode type detection)
 
 
 @dataclass
@@ -150,10 +156,10 @@ def parse_btsnoop(path: Path) -> list[BtsnoopRecord]:
     """Parse a btsnoop v1 file and return all records.
 
     Format:
-      Header (24 bytes):
+      Header (16 bytes):
         - 8-byte magic: b'btsnoop\\x00'
         - 4-byte version: 1 (BE)
-        - 4-byte datalink type: 1002 = HCI_UART (BE)
+        - 4-byte datalink type: 1002 = HCI_UART or 2001 = monitor (BE)
       Records:
         - original_len: 4 BE
         - inc_len: 4 BE
@@ -175,11 +181,11 @@ def parse_btsnoop(path: Path) -> list[BtsnoopRecord]:
         raise ValueError(f"unsupported btsnoop version: {version}")
 
     datalink = struct.unpack(">I", raw[12:16])[0]
-    if datalink != HCI_UART_DATALINK:
+    if datalink not in (HCI_UART_DATALINK, HCI_MONITOR_DATALINK):
         raise ValueError(f"unsupported datalink type: {datalink}")
 
     records: list[BtsnoopRecord] = []
-    offset = 24
+    offset = 16  # file header: 8 magic + 4 version + 4 datalink
 
     while offset + 24 <= len(raw):
         original_len = struct.unpack(">I", raw[offset:offset + 4])[0]
@@ -195,19 +201,52 @@ def parse_btsnoop(path: Path) -> list[BtsnoopRecord]:
                         offset, data_end, len(raw))
             break
 
-        # For HCI_UART, flags bit 0: 0=sent, 1=received
         sent = (flags & 0x01) == 0
+        record_data = raw[data_start:data_end]
+
+        # Monitor mode (2001) strips the HCI type byte from data.
+        # The packet type is encoded in flags & 0xFF:
+        #   2=CMD, 3=EVT, 4=ACL_TX, 5=ACL_RX, 6=SCO_TX, 7=SCO_RX
+        # Prepend the type byte so downstream code works unchanged.
+        if datalink == HCI_MONITOR_DATALINK:
+            pkt_type = _monitor_type_byte(flags)
+            if pkt_type is not None:
+                record_data = bytes([pkt_type]) + record_data
+            # else: system/ctrl record — keep as-is (won't match any type check)
 
         records.append(BtsnoopRecord(
-            data=raw[data_start:data_end],
+            data=record_data,
             sent=sent,
             original_len=original_len,
             drops=drops,
             timestamp_us=timestamp_us,
+            record_flags=flags,
         ))
         offset = data_end
 
     return records
+
+
+def _monitor_type_byte(flags: int) -> int | None:
+    """Map btsnoop monitor-mode flags to HCI UART type byte.
+
+    Monitor flags & 0xFF encoding (from Linux hci_mon.h):
+      0=NEW_INDEX, 1=DEL_INDEX, 2=CMD, 3=EVT, 4=ACL_TX, 5=ACL_RX,
+      6=SCO_TX, 7=SCO_RX, 12+=ctrl events (not HCI).
+    Direction is implicit in the opcode (4 vs 5).
+    """
+    HCI_CMD = 0x01
+    HCI_EVT = 0x04
+    mon_type = flags & 0xFF
+    if mon_type == 2:
+        return HCI_CMD
+    if mon_type == 3:
+        return HCI_EVT
+    if mon_type in (4, 5):
+        return HCI_ACL_DATA
+    if mon_type in (6, 7):
+        return 0x03  # SCO
+    return None
 
 
 # ============================================================================
@@ -217,13 +256,12 @@ def parse_btsnoop(path: Path) -> list[BtsnoopRecord]:
 def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bool]]:
     """Reassemble HCI ACL continuation fragments into complete L2CAP frames.
 
-    HCI ACL Data Packet:
-      [handle:12 + PB:2 + BC:2 (LE)][len:2 BE][data:len]
-      PB flags: 0x00=first (start), 0x01=continuation
+    Expects data to start with HCI type byte (0x02 for ACL).
+    For monitor mode (2001), the type byte is prepended during parsing.
+    Accepts PB=0 (first) and PB=2 (flushable first) as start indicators.
 
     Returns list of (data, sent) tuples for each complete reassembled frame.
     """
-    # Per-connection-handle reassembly buffers
     buffers: dict[int, bytearray] = {}
     results: list[tuple[bytes, bool]] = []
 
@@ -232,7 +270,6 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
         if len(data) < 1:
             continue
 
-        # HCI_UART format: first byte is packet type
         pkt_type = data[0]
         if pkt_type != HCI_ACL_DATA:
             continue
@@ -240,7 +277,6 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
         if len(data) < 5:
             continue
 
-        # ACL header: 2 bytes (handle + PB/BC) + 2 bytes (length)
         acl_header = struct.unpack("<H", data[1:3])[0]
         acl_len = struct.unpack("<H", data[3:5])[0]
 
@@ -249,24 +285,19 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
 
         payload = data[5:5 + acl_len]
 
-        if pb_flags == PB_FIRST:
-            # Start of a new L2CAP frame — discard any previous incomplete buffer
+        if pb_flags in (PB_FIRST, 0x02):
             buffers[handle] = bytearray(payload)
         elif pb_flags == PB_CONTINUATION:
             buf = buffers.get(handle)
             if buf is not None:
                 buf.extend(payload)
-            # If no buffer exists, this is an orphan continuation — skip
         else:
-            # Other PB flags (broadcast) — not relevant for BLE
             continue
 
-        # Check if we have a complete L2CAP frame
         buf = buffers.get(handle)
         if buf is None:
             continue
 
-        # L2CAP frame: [length:2 LE][cid:2 LE][data:length]
         if len(buf) < 4:
             continue
 
@@ -274,7 +305,6 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
         total_frame_len = 4 + l2cap_len
 
         if len(buf) >= total_frame_len:
-            # Complete frame — extract and remove from buffer
             frame = bytes(buf[:total_frame_len])
             del buf[:total_frame_len]
             if not buf:
@@ -291,23 +321,22 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
 def extract_fips_l2cap_frames(
     frames: list[tuple[bytes, bool]],
 ) -> list[tuple[bytes, bool]]:
-    """Extract L2CAP frames on FIPS PSM (133) using signalling tracking.
+    """Extract L2CAP frames carrying FIPS traffic.
 
-    L2CAP Basic Frame: [length:2 LE][cid:2 LE][data:length]
-    Signalling (CID 0x0001):
-      Conn Req:  [code=0x02][ident][len:2][psm:2][scid:2]
-      Conn Resp: [code=0x03][ident][len:2][dcid:2][scid:2][result:2][status:2]
-
-    Returns only frames on CIDs where PSM == 133 (FIPS).
+    Strategy:
+      1. Track L2CAP CoC connections via signalling (CID 0x0001) to find PSM 133.
+      2. If signalling was captured, filter by known PSM 133 CIDs.
+      3. If no signalling (btmon started after connection setup), fall back to
+         content-based detection: try parsing FMP on dynamic CIDs (>=0x0040)
+         and accept those producing valid FMP frames (version 0, known phase).
     """
-    # Track active L2CAP CoC connections: scid -> L2CAPConnection
     pending: dict[int, L2CAPConnection] = {}
-    # Map: local_cid -> L2CAPConnection (after response)
     active: dict[int, L2CAPConnection] = {}
-    # Map: ident -> scid (for matching request/response)
     ident_to_scid: dict[int, int] = {}
 
+    fips_cids: set[int] = set()
     fips_frames: list[tuple[bytes, bool]] = []
+    all_dynamic: list[tuple[bytes, bool, int]] = []
 
     for frame_data, sent in frames:
         if len(frame_data) < 4:
@@ -321,12 +350,60 @@ def extract_fips_l2cap_frames(
             _process_signalling(payload, pending, active, ident_to_scid)
             continue
 
-        # Check if this CID belongs to a FIPS connection
-        conn = active.get(cid)
-        if conn is not None and conn.psm == FIPS_L2CAP_PSM:
-            fips_frames.append((payload, sent))
+        if cid >= L2CAP_DYNAMIC_CID_MIN:
+            conn = active.get(cid)
+            if conn is not None and conn.psm == FIPS_L2CAP_PSM:
+                fips_frames.append((payload, sent))
+                fips_cids.add(cid)
+            else:
+                all_dynamic.append((payload, sent, cid))
 
-    return fips_frames
+    if fips_frames:
+        return fips_frames
+
+    # Fallback: content-based FMP detection on unresolved dynamic CIDs
+    candidate_cids = _detect_fips_cids(all_dynamic)
+    if candidate_cids:
+        return [(payload, sent) for payload, sent, cid in all_dynamic if cid in candidate_cids]
+
+    return []
+
+
+def _detect_fips_cids(
+    frames: list[tuple[bytes, bool, int]],
+) -> set[int]:
+    """Identify CIDs carrying FIPS traffic by probing payloads for valid FMP frames."""
+    cid_fmp_hits: dict[int, int] = {}
+
+    for payload, _sent, cid in frames:
+        if len(payload) < 2:
+            continue
+        sdu_len = struct.unpack("<H", payload[0:2])[0]
+        content = payload[2:2 + sdu_len]
+
+        offset = 0
+        while offset + 2 <= len(content):
+            ble_len = struct.unpack(">H", content[offset:offset + 2])[0]
+            if ble_len == 0 or offset + 2 + ble_len > len(content):
+                break
+            fmp_data = content[offset + 2:offset + 2 + ble_len]
+            offset += 2 + ble_len
+
+            if len(fmp_data) < COMMON_PREFIX_SIZE:
+                continue
+
+            ver_phase = fmp_data[0]
+            version = (ver_phase >> 4) & 0x0F
+            phase = ver_phase & 0x0F
+
+            if version == FMP_VERSION and phase in (PHASE_ESTABLISHED, PHASE_MSG1, PHASE_MSG2):
+                cid_fmp_hits[cid] = cid_fmp_hits.get(cid, 0) + 1
+
+    if not cid_fmp_hits:
+        return set()
+
+    max_hits = max(cid_fmp_hits.values())
+    return {cid for cid, hits in cid_fmp_hits.items() if hits >= max(1, max_hits // 4)}
 
 
 def _process_signalling(
@@ -380,43 +457,51 @@ def _process_signalling(
 def parse_fmp_frames(
     l2cap_payloads: list[tuple[bytes, bool]],
 ) -> list[tuple[FmpFrame, bool]]:
-    """Parse FMP frames from L2CAP payloads.
+    """Parse FMP frames from L2CAP CoC SDU payloads.
 
-    The BLE transport prepends a 2-byte BE length prefix to each FIPS
-    packet (frame_payload() in io.rs). We strip this prefix to get
-    the raw FMP packet.
-
-    FMP common prefix (4 bytes):
+    L2CAP CoC SDU format (as captured by btmon on Linux):
+      [sdu_len:2 LE][content:sdu_len]
+    Where content is one or more concatenated BLE transport frames:
+      [fmp_len:2 BE][fmp_data:fmp_len]
+    Each fmp_data is an FMP packet with common prefix:
       [ver(4bits)+phase(4bits)][flags:1][payload_len:2 LE]
     """
     frames: list[tuple[FmpFrame, bool]] = []
 
     for payload, sent in l2cap_payloads:
-        # Strip the 2-byte BE length prefix from BLE transport framing
         if len(payload) < 2:
             continue
-        frame_len = struct.unpack(">H", payload[0:2])[0]
-        fmp_data = payload[2:2 + frame_len]
 
-        if len(fmp_data) < COMMON_PREFIX_SIZE:
-            continue
+        sdu_len = struct.unpack("<H", payload[0:2])[0]
+        content = payload[2:2 + sdu_len]
 
-        ver_phase = fmp_data[0]
-        version = (ver_phase >> 4) & 0x0F
-        phase = ver_phase & 0x0F
-        flags = fmp_data[1]
-        payload_len = struct.unpack("<H", fmp_data[2:4])[0]
+        offset = 0
+        while offset + 2 <= len(content):
+            ble_len = struct.unpack(">H", content[offset:offset + 2])[0]
+            if ble_len == 0 or offset + 2 + ble_len > len(content):
+                break
+            fmp_data = content[offset + 2:offset + 2 + ble_len]
+            offset += 2 + ble_len
 
-        if version != FMP_VERSION:
-            continue
+            if len(fmp_data) < COMMON_PREFIX_SIZE:
+                continue
 
-        frames.append((FmpFrame(
-            phase=phase,
-            version=version,
-            flags=flags,
-            payload_len=payload_len,
-            raw=fmp_data,
-        ), sent))
+            ver_phase = fmp_data[0]
+            version = (ver_phase >> 4) & 0x0F
+            phase = ver_phase & 0x0F
+            flags = fmp_data[1]
+            payload_len = struct.unpack("<H", fmp_data[2:4])[0]
+
+            if version != FMP_VERSION:
+                continue
+
+            frames.append((FmpFrame(
+                phase=phase,
+                version=version,
+                flags=flags,
+                payload_len=payload_len,
+                raw=fmp_data,
+            ), sent))
 
     return frames
 

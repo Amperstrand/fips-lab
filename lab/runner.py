@@ -51,9 +51,9 @@ class LabRunner:
             self._resolve_devices()
             self._write_static_artifacts()
             self._setup_isolation()
-            self._deploy()
             self._setup_captures()
             self._start_captures()
+            self._deploy()
             self._collect_initial_snapshots()
             if not self.dry_run:
                 self._test_loop()
@@ -61,8 +61,8 @@ class LabRunner:
             self._stop_captures()
             self._collect_keylogs()
             self._run_iperf()
-            self._run_analysis()
-            self._run_btsnoop_decrypt()
+        self._run_btsnoop_decrypt()
+        self._run_analysis()
             self._generate_charts()
             self._deploy_cleanup()
             if self.publish:
@@ -212,7 +212,7 @@ class LabRunner:
                     duration_udp=capture_cfg.get("iperf3_udp_duration", 10),
                     udp_rate=capture_cfg.get("iperf3_udp_rate", "50K"),
                     tcp_window=capture_cfg.get("iperf3_tcp_window", "8K"),
-                    fipsctl_path=server_cfg.get("fipsctl_path", ""),
+                    fipsctl_path=server_cfg.get("fipsctl", ""),
                 )
 
     def _start_captures(self) -> None:
