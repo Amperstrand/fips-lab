@@ -274,7 +274,11 @@ class LabRunner:
         if not peers_data or not isinstance(peers_data, dict):
             return ""
         for peer in peers_data.get("peers", []):
+            if peer.get("transport_type") != "ble":
+                continue
             addr = peer.get("ble_addr") or peer.get("address", "")
+            if not addr and "/" in peer.get("transport_addr", ""):
+                addr = peer["transport_addr"].split("/", 1)[1]
             if addr and ":" in addr:
                 return str(addr)
         return ""

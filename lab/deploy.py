@@ -63,6 +63,9 @@ class DeployManager:
                 )
             else:
                 log.info("Stopped FIPS on %s", alias)
+            socket_path = cfg.get("control_socket")
+            if socket_path:
+                device.run(["rm", "-f", str(socket_path)])
 
     def _fips_devices(self) -> dict[str, tuple[Device, dict[str, Any]]]:
         out: dict[str, tuple[Device, dict[str, Any]]] = {}
