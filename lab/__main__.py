@@ -22,7 +22,7 @@ def main() -> None:
     if args.list:
         for path in sorted(Path("scenarios").glob("*.yaml")):
             scenario = Scenario.load(path)
-            print(f"{scenario.name}\t{path}")
+            print(f"{scenario.name}\ttier={scenario.tier}\tduration={scenario.duration_secs}s\t{path}")
         return
 
     if not args.scenario:

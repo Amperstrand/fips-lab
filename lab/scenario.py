@@ -6,6 +6,17 @@ from typing import Any
 
 import yaml
 
+TIER_DURATIONS: dict[str, int] = {
+    "smoke": 60,
+    "short": 120,
+    "medium": 300,
+    "standard": 600,
+    "extended": 1800,
+    "marathon": 7200,
+}
+
+VALID_TIERS = set(TIER_DURATIONS.keys())
+
 
 @dataclass(frozen=True)
 class Scenario:
@@ -26,9 +37,17 @@ class Scenario:
         return str(scenario.get("name") or self.path.stem)
 
     @property
+    def tier(self) -> str:
+        scenario = self.raw.get("scenario") or {}
+        return str(scenario.get("tier", "smoke"))
+
+    @property
     def duration_secs(self) -> int:
         scenario = self.raw.get("scenario") or {}
-        return int(scenario.get("duration_secs", 60))
+        explicit = scenario.get("duration_secs")
+        if explicit is not None:
+            return int(explicit)
+        return TIER_DURATIONS.get(self.tier, 60)
 
     @property
     def topology_devices(self) -> list[dict[str, Any]]:
@@ -42,6 +61,13 @@ class Scenario:
 def _validate(path: Path, raw: dict[str, Any]) -> None:
     if not isinstance(raw, dict):
         raise ValueError(f"scenario {path} must be a YAML mapping")
+    scenario = raw.get("scenario") or {}
+    tier = scenario.get("tier")
+    if tier is not None and str(tier) not in VALID_TIERS:
+        raise ValueError(
+            f"scenario {path}: invalid tier '{tier}', "
+            f"must be one of: {', '.join(sorted(TIER_DURATIONS.keys()))}"
+        )
     devices = ((raw.get("topology") or {}).get("devices")) or []
     if not devices:
         raise ValueError(f"scenario {path} must define topology.devices")

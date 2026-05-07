@@ -10,6 +10,7 @@ from .analysis import analyze_run, write_analysis as write_analysis_report
 from .capture.btmon import BtmonCapture
 from .capture.iperf import IperfSession
 from .capture.keylog import KeylogCapture
+from .capture.rssi import RssiCollector
 from .capture.serial_log import SerialLogCapture
 from .config_gen import write_lab_acl, write_resolved_devices
 from .deploy import DeployManager
@@ -41,6 +42,7 @@ class LabRunner:
         self.devices: dict[str, Device] = {}
         self.resolved_configs: dict[str, dict[str, Any]] = {}
         self.captures: list[BtmonCapture | SerialLogCapture] = []
+        self.rssi_collectors: list[RssiCollector] = []
         self.iperf: IperfSession | None = None
 
     def run(self) -> int:
@@ -61,8 +63,8 @@ class LabRunner:
             self._stop_captures()
             self._collect_keylogs()
             self._run_iperf()
-        self._run_btsnoop_decrypt()
-        self._run_analysis()
+            self._run_btsnoop_decrypt()
+            self._run_analysis()
             self._generate_charts()
             self._deploy_cleanup()
             if self.publish:
@@ -101,7 +103,6 @@ class LabRunner:
             "scenario": self.scenario.name,
             "duration_secs": self.duration_override or self.scenario.duration_secs,
             "dry_run": self.dry_run,
-            "inventory_path": str(self.inventory.path),
             "lab": self.inventory.lab,
             "git": _git_metadata(Path.cwd()),
             "fips_git": _fips_git_metadata(self.resolved_configs),
@@ -215,9 +216,14 @@ class LabRunner:
                     fipsctl_path=server_cfg.get("fipsctl", ""),
                 )
 
+        if capture_cfg.get("rssi"):
+            self._setup_rssi_collectors()
+
     def _start_captures(self) -> None:
         for cap in self.captures:
             cap.start()
+        for rc in self.rssi_collectors:
+            rc.start()
 
     def _stop_captures(self) -> None:
         assert self.run_dir is not None
@@ -225,8 +231,46 @@ class LabRunner:
         for cap in self.captures:
             info = cap.stop()
             capture_results[info.get("device", cap.device_alias)] = info
+        for rc in self.rssi_collectors:
+            info = rc.stop()
+            capture_results[f"rssi-{rc.device_alias}"] = info
         if capture_results:
             write_json(self.run_dir / "capture-results.json", capture_results)
+
+    def _setup_rssi_collectors(self) -> None:
+        assert self.run_dir is not None
+        for alias, cfg in self.resolved_configs.items():
+            if cfg.get("transport") != "ssh" or cfg.get("platform") != "linux":
+                continue
+            host = cfg.get("host", "")
+            user = cfg.get("user", "")
+            if not host:
+                continue
+            ble_addr = self._discover_ble_peer_addr(alias, cfg)
+            if not ble_addr:
+                log.warning("No BLE peer address found for RSSI collection on %s", alias)
+                continue
+            self.rssi_collectors.append(RssiCollector(
+                device_alias=alias,
+                host=host,
+                user=user,
+                ble_addr=ble_addr,
+                results_dir=self.run_dir,
+                enabled=not self.dry_run,
+            ))
+
+    def _discover_ble_peer_addr(self, alias: str, cfg: dict[str, Any]) -> str:
+        device = self.devices.get(alias)
+        if not device or device.type != "fips":
+            return ""
+        peers_data = device.query("show_peers")
+        if not peers_data or not isinstance(peers_data, dict):
+            return ""
+        for peer in peers_data.get("peers", []):
+            addr = peer.get("ble_addr") or peer.get("address", "")
+            if addr and ":" in addr:
+                return str(addr)
+        return ""
 
     def _run_iperf(self) -> None:
         if self.iperf and self.iperf.enabled:

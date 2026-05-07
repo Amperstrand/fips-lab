@@ -158,23 +158,26 @@ redact_file() {
       -e 's|/home/[^"\\ ]*|/home/REDACTED|g' \
       -e 's|/tmp/[^"\\ ]*|/tmp/REDACTED|g' \
       -e 's|/run/[^"\\ ]*|/run/REDACTED|g' \
+      -e 's|/etc/[^"\\ ]*|/etc/REDACTED|g' \
+      -e 's|/usr/local/etc/[^"\\ ]*|/usr/local/etc/REDACTED|g' \
       -e 's|"user": "ubuntu"|"user": "REDACTED"|g' \
       -e 's|"user": "[^"]*"|"user": "REDACTED"|g' \
       "$file" 2>/dev/null
   else
-    # macOS sed
     sed -i '' \
       -e 's|/Users/[^"\\ ]*|/Users/REDACTED|g' \
       -e 's|/home/[^"\\ ]*|/home/REDACTED|g' \
       -e 's|/tmp/[^"\\ ]*|/tmp/REDACTED|g' \
       -e 's|/run/[^"\\ ]*|/run/REDACTED|g' \
+      -e 's|/etc/[^"\\ ]*|/etc/REDACTED|g' \
+      -e 's|/usr/local/etc/[^"\\ ]*|/usr/local/etc/REDACTED|g' \
       -e 's|"user": "ubuntu"|"user": "REDACTED"|g' \
       -e 's|"user": "[^"]*"|"user": "REDACTED"|g' \
       "$file" 2>/dev/null
   fi
 }
 
-for json_file in "$TARGET_DIR"/*.json; do
+for json_file in "$TARGET_DIR"/*.json "$TARGET_DIR"/*.md; do
   [ -f "$json_file" ] && redact_file "$json_file"
 done
 for yaml_file in "$TARGET_DIR"/*.yaml; do

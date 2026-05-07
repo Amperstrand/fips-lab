@@ -123,6 +123,8 @@ class DecryptedFrame:
     msg_type: int
     msg_name: str
     plaintext_len: int
+    key_index: int = -1
+    sent: bool = False
 
 
 @dataclass
@@ -146,6 +148,10 @@ class DecryptionSummary:
     total_decrypted_bytes: int = 0
     keylog_entries_used: int = 0
     keylog_files: list[str] = field(default_factory=list)
+    rekey_groups: list[dict[str, Any]] = field(default_factory=list)
+    rekey_intervals_secs: list[float] = field(default_factory=list)
+    handshake_analysis: dict[str, Any] = field(default_factory=dict)
+    decryption_by_direction: dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================================
@@ -569,7 +575,7 @@ def _decrypt_established_frame(
     from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
     # Try all available keys
-    for send_key, recv_key, _local, _peer in keys:
+    for key_idx, (send_key, recv_key, _local, _peer) in enumerate(keys):
         for key in (send_key, recv_key):
             try:
                 cipher = ChaCha20Poly1305(key)
@@ -592,6 +598,7 @@ def _decrypt_established_frame(
                 msg_type=msg_type,
                 msg_name=msg_name,
                 plaintext_len=len(plaintext),
+                key_index=key_idx,
             )
 
     return None
@@ -647,6 +654,86 @@ def _build_summary(
     if "Unknown" not in msg_counts:
         msg_counts["Unknown"] = {"count": 0}
 
+    # --- Per-rekey group statistics ---
+    key_buckets: dict[int, list[DecryptedFrame]] = {}
+    for df in decrypted:
+        key_buckets.setdefault(df.key_index, []).append(df)
+
+    rekey_groups: list[dict[str, Any]] = []
+    for key_idx in sorted(key_buckets):
+        frames = key_buckets[key_idx]
+        counters = [df.counter for df in frames]
+        bytes_sum = sum(df.plaintext_len for df in frames)
+        rekey_groups.append({
+            "key_index": key_idx,
+            "first_counter": min(counters),
+            "last_counter": max(counters),
+            "frames_decrypted": len(frames),
+            "frames_failed": 0,
+            "bytes_decrypted": bytes_sum,
+        })
+
+    # Distribute failed frames across groups proportionally
+    if failed_count > 0 and rekey_groups:
+        total_dec = sum(g["frames_decrypted"] for g in rekey_groups)
+        if total_dec > 0:
+            remaining = failed_count
+            for i, g in enumerate(rekey_groups):
+                if i < len(rekey_groups) - 1:
+                    share = round(failed_count * g["frames_decrypted"] / total_dec)
+                    g["frames_failed"] = share
+                    remaining -= share
+                else:
+                    g["frames_failed"] = remaining
+
+    # --- Rekey interval distribution ---
+    rekey_intervals_secs: list[float] = []
+    sorted_keys = sorted(key_buckets)
+    for i in range(1, len(sorted_keys)):
+        prev_frames = key_buckets[sorted_keys[i - 1]]
+        curr_frames = key_buckets[sorted_keys[i]]
+        last_ts = max(df.timestamp_ms for df in prev_frames)
+        first_ts = min(df.timestamp_ms for df in curr_frames)
+        delta_s = abs(first_ts - last_ts) / 1000.0
+        rekey_intervals_secs.append(round(delta_s, 3))
+
+    # --- Handshake phase analysis ---
+    msg1_sent = sum(1 for fmp, sent in fmp_frames_parsed
+                    if fmp.phase == PHASE_MSG1 and sent)
+    msg1_recv = sum(1 for fmp, sent in fmp_frames_parsed
+                    if fmp.phase == PHASE_MSG1 and not sent)
+    msg2_sent = sum(1 for fmp, sent in fmp_frames_parsed
+                    if fmp.phase == PHASE_MSG2 and sent)
+    msg2_recv = sum(1 for fmp, sent in fmp_frames_parsed
+                    if fmp.phase == PHASE_MSG2 and not sent)
+    handshake_analysis: dict[str, Any] = {
+        "msg1_sent": msg1_sent,
+        "msg1_recv": msg1_recv,
+        "msg2_sent": msg2_sent,
+        "msg2_recv": msg2_recv,
+        "total_handshakes": min(msg1_sent + msg1_recv, msg2_sent + msg2_recv),
+    }
+
+    # --- Decryption by direction ---
+    tx_attempted = sum(1 for fmp, sent in fmp_frames_parsed
+                       if fmp.phase == PHASE_ESTABLISHED and sent)
+    rx_attempted = sum(1 for fmp, sent in fmp_frames_parsed
+                       if fmp.phase == PHASE_ESTABLISHED and not sent)
+    tx_succeeded = sum(1 for df in decrypted if df.sent)
+    rx_succeeded = sum(1 for df in decrypted if not df.sent)
+    decryption_by_direction: dict[str, Any] = {
+        "tx": {
+            "attempted": tx_attempted,
+            "succeeded": tx_succeeded,
+            "failed": tx_attempted - tx_succeeded,
+        },
+        "rx": {
+            "attempted": rx_attempted,
+            "succeeded": rx_succeeded,
+            "failed": rx_attempted - rx_succeeded,
+        },
+    }
+
     return DecryptionSummary(
         capture_file=capture_file,
         total_hci_records=total_records,
@@ -663,6 +750,10 @@ def _build_summary(
         total_decrypted_bytes=total_decrypted_bytes,
         keylog_entries_used=len(keys),
         keylog_files=keylog_files,
+        rekey_groups=rekey_groups,
+        rekey_intervals_secs=rekey_intervals_secs,
+        handshake_analysis=handshake_analysis,
+        decryption_by_direction=decryption_by_direction,
     )
 
 
@@ -681,6 +772,10 @@ def _write_json(summary: DecryptionSummary, path: Path) -> None:
         "total_decrypted_bytes": summary.total_decrypted_bytes,
         "keylog_entries_used": summary.keylog_entries_used,
         "keylog_files": summary.keylog_files,
+        "rekey_groups": summary.rekey_groups,
+        "rekey_intervals_secs": summary.rekey_intervals_secs,
+        "handshake_analysis": summary.handshake_analysis,
+        "decryption_by_direction": summary.decryption_by_direction,
     }
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
@@ -728,6 +823,68 @@ def _write_markdown(summary: DecryptionSummary, path: Path) -> None:
             type_id = info.get("type_id", -1)
             tid_str = f"0x{type_id:02x}" if type_id >= 0 else "—"
             lines.append(f"| {name} | {tid_str} | {info['count']} |")
+        lines.append("")
+
+    # Per-rekey group statistics
+    if summary.rekey_groups:
+        lines.append("## Per-Rekey Group Statistics")
+        lines.append("| Key | Counter Range | Decrypted | Failed | Success% | Bytes |")
+        lines.append("|-----|---------------|-----------|--------|----------|-------|")
+        for g in summary.rekey_groups:
+            total = g["frames_decrypted"] + g["frames_failed"]
+            pct = (g["frames_decrypted"] / total * 100) if total > 0 else 0.0
+            crange = f"{g['first_counter']}–{g['last_counter']}"
+            lines.append(
+                f"| {g['key_index']} | {crange} | {g['frames_decrypted']} "
+                f"| {g['frames_failed']} | {pct:.1f}% | {g['bytes_decrypted']:,} |"
+            )
+        lines.append("")
+
+    # Rekey interval distribution
+    if summary.rekey_intervals_secs:
+        vals = summary.rekey_intervals_secs
+        n = len(vals)
+        mn, mx = min(vals), max(vals)
+        avg = sum(vals) / n
+        variance = sum((v - avg) ** 2 for v in vals) / max(1, n - 1) if n > 1 else 0.0
+        stdev = variance ** 0.5
+        lines.append("## Rekey Interval Distribution")
+        lines.append("| Metric | Value |")
+        lines.append("|--------|-------|")
+        lines.append(f"| Count | {n} |")
+        lines.append(f"| Min | {mn:.3f} s |")
+        lines.append(f"| Max | {mx:.3f} s |")
+        lines.append(f"| Avg | {avg:.3f} s |")
+        lines.append(f"| Stdev | {stdev:.3f} s |")
+        lines.append("")
+
+    # Handshake phase analysis
+    ha = summary.handshake_analysis
+    if ha.get("total_handshakes", 0) > 0 or ha.get("msg1_sent", 0) > 0:
+        lines.append("## Handshake Phase Analysis")
+        lines.append("| Phase | Sent | Received | Total |")
+        lines.append("|-------|------|----------|-------|")
+        lines.append(f"| MSG1 (initiate) | {ha['msg1_sent']} | {ha['msg1_recv']} "
+                     f"| {ha['msg1_sent'] + ha['msg1_recv']} |")
+        lines.append(f"| MSG2 (response) | {ha['msg2_sent']} | {ha['msg2_recv']} "
+                     f"| {ha['msg2_sent'] + ha['msg2_recv']} |")
+        lines.append(f"| **Complete handshakes** | | | **{ha['total_handshakes']}** |")
+        lines.append("")
+
+    # Decryption by direction
+    dd = summary.decryption_by_direction
+    if dd.get("tx", {}).get("attempted", 0) > 0 or dd.get("rx", {}).get("attempted", 0) > 0:
+        lines.append("## Decryption by Direction")
+        lines.append("| Direction | Attempted | Succeeded | Failed | Success% |")
+        lines.append("|-----------|-----------|-----------|--------|----------|")
+        for direction in ("tx", "rx"):
+            d = dd[direction]
+            total = d["attempted"]
+            succ = d["succeeded"]
+            fail = d["failed"]
+            pct = (succ / total * 100) if total > 0 else 0.0
+            label = "TX (sent)" if direction == "tx" else "RX (recv)"
+            lines.append(f"| {label} | {total} | {succ} | {fail} | {pct:.1f}% |")
         lines.append("")
 
     # Keylog files
@@ -794,12 +951,13 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
     failed_count = 0
     total_decrypted_bytes = 0
 
-    for fmp, _sent in fmp_frames:
+    for fmp, sent in fmp_frames:
         if fmp.phase != PHASE_ESTABLISHED:
             continue
 
         result = _decrypt_established_frame(fmp.raw, keys)
         if result is not None:
+            result.sent = sent
             decrypted.append(result)
             total_decrypted_bytes += result.plaintext_len
         else:

@@ -52,7 +52,7 @@ class IperfSession:
         if result.returncode == 0:
             try:
                 status = json.loads(result.stdout)
-                addr = status.get("address", "")
+                addr = status.get("ipv6_addr", "")
                 if addr:
                     return addr
             except json.JSONDecodeError:

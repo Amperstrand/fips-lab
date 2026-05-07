@@ -1,6 +1,6 @@
 scenario:
   name: lab-2node-ble
-  duration_secs: 600
+  tier: standard
   description: Mac ↔ Linux BLE mesh, 10 minutes, with deploy restart, btmon, keylog capture, and iperf3.
 
 topology:
@@ -41,6 +41,7 @@ actions:
       enabled: true
       device: linux
     keylog: true
+    rssi: true
     iperf3: true
     iperf3_tcp_duration: 10
     iperf3_udp_duration: 10

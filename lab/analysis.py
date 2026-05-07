@@ -84,6 +84,7 @@ class AnalysisReport:
     assertions: list[AssertionResult]
     memory: dict
     decryption_summary: dict | None = None
+    rssi_stats: list[dict] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -703,6 +704,33 @@ def _format_duration(secs: int) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Helpers – RSSI stats
+# ---------------------------------------------------------------------------
+
+def _build_rssi_stats(run_dir: Path) -> list[dict]:
+    """Load all rssi-timeseries-*.json files and compute per-device stats."""
+    stats: list[dict] = []
+    for ts_path in sorted(run_dir.glob("rssi-timeseries-*.json")):
+        data = _load_json(ts_path)
+        if not data or not isinstance(data, list):
+            continue
+        values = [s["rssi"] for s in data if "rssi" in s]
+        if not values:
+            continue
+        alias = ts_path.stem.replace("rssi-timeseries-", "")
+        first_sample = data[0] if data else {}
+        stats.append({
+            "device": alias,
+            "ble_addr": first_sample.get("ble_addr", ""),
+            "samples": len(values),
+            "min": min(values),
+            "max": max(values),
+            "avg": round(sum(values) / len(values), 1),
+        })
+    return stats
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -753,6 +781,9 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     # -- decryption summary -------------------------------------------------
     decryption_summary = _load_json(run_dir / "decryption-summary.json")
 
+    # -- RSSI stats ---------------------------------------------------------
+    rssi_stats = _build_rssi_stats(run_dir)
+
     # -- scenario links (for connectivity assertions) ----------------------
     expected_links = _parse_scenario_links(run_dir / "scenario.yaml")
 
@@ -783,6 +814,7 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
         assertions=assertions,
         memory={},  # RSS not available in current artifacts
         decryption_summary=decryption_summary,
+        rssi_stats=rssi_stats,
     )
 
 
@@ -807,6 +839,7 @@ def write_analysis(report: AnalysisReport, run_dir: Path) -> None:
         "assertions": [asdict(a) for a in report.assertions],
         "memory": report.memory,
         "decryption_summary": report.decryption_summary,
+        "rssi_stats": report.rssi_stats,
     }
     json_path = run_dir / "analysis.json"
     json_path.write_text(json.dumps(json_data, indent=2) + "\n", encoding="utf-8")
@@ -921,6 +954,18 @@ def format_markdown(report: AnalysisReport) -> str:
         lines.append("|--------|-----|")
         for device, rss in report.memory.items():
             lines.append(f"| {device} | {rss} |")
+        lines.append("")
+
+    # -- RSSI stats ---------------------------------------------------------
+    if report.rssi_stats:
+        lines.append("## BLE RSSI")
+        lines.append("| Device | BLE Address | Samples | Min | Avg | Max |")
+        lines.append("|--------|-------------|---------|-----|-----|-----|")
+        for rs in report.rssi_stats:
+            lines.append(
+                f"| {rs['device']} | {rs.get('ble_addr', '')} | "
+                f"{rs['samples']} | {rs['min']} | {rs['avg']} | {rs['max']} |"
+            )
         lines.append("")
 
     # -- decryption summary -------------------------------------------------
