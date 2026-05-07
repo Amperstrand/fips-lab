@@ -186,6 +186,405 @@ done
 
 echo "==> Redacted local paths and usernames from published JSON/YAML"
 
+# ── Generate report.html for the current run ─────────────────────────
+
+generate_report_html() {
+  local target_dir="$1"
+
+  [ ! -f "$target_dir/analysis.json" ] && return 0
+
+  python3 - <<'PYREPORT' "$target_dir"
+import json, sys, os, html as html_mod
+from datetime import datetime
+
+target_dir = sys.argv[1]
+
+# ── Load data ──────────────────────────────────────────────────────────
+
+with open(os.path.join(target_dir, "analysis.json")) as f:
+    analysis = json.load(f)
+
+meta = {}
+meta_path = os.path.join(target_dir, "metadata.json")
+if os.path.exists(meta_path):
+    with open(meta_path) as f:
+        meta = json.load(f)
+
+# ── Helpers ────────────────────────────────────────────────────────────
+
+def esc(s):
+    return html_mod.escape(str(s))
+
+def fmt_ts(ts):
+    if not ts:
+        return "N/A"
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H-%M-%SZ"):
+        try:
+            dt = datetime.strptime(ts, fmt)
+            months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            return f"{months[dt.month]} {dt.day}, {dt.year} {dt.hour:02d}:{dt.minute:02d} UTC"
+        except ValueError:
+            continue
+    return ts
+
+def fmt_dur(secs):
+    secs = int(secs or 0)
+    if secs < 60:
+        return f"{secs}s"
+    m, s = divmod(secs, 60)
+    if m < 60:
+        return f"{m}m {s}s" if s else f"{m}m"
+    h, m = divmod(m, 60)
+    return f"{h}h {m}m"
+
+def verdict_css(v):
+    return {
+        "PASS": "v-pass",
+        "FAIL": "v-fail",
+        "DEGRADED": "v-degraded",
+        "INSUFFICIENT_DATA": "v-na",
+    }.get(v, "v-na")
+
+def verdict_icon(v):
+    return {"PASS": "✅", "FAIL": "❌", "DEGRADED": "⚠️", "INSUFFICIENT_DATA": "❓"}.get(v, "❓")
+
+def bool_icon(b):
+    return "✅" if b else "❌"
+
+def size_fmt(b):
+    b = int(b or 0)
+    if b < 1024:
+        return f"{b} B"
+    if b < 1024 * 1024:
+        return f"{b / 1024:.1f} KB"
+    return f"{b / (1024 * 1024):.1f} MB"
+
+# ── Extract metadata ──────────────────────────────────────────────────
+
+verdict = analysis.get("verdict", "N/A")
+scenario = analysis.get("scenario_name", meta.get("scenario", "unknown"))
+timestamp = analysis.get("timestamp", meta.get("timestamp", ""))
+duration = analysis.get("duration_secs", meta.get("duration_secs", 0))
+commit = meta.get("commit", "")
+fips_git = meta.get("fips_git", {})
+fips_commit = fips_git.get("commit", commit)
+fips_branch = fips_git.get("branch", "")
+fips_dirty = fips_git.get("dirty", False)
+
+# ── Build chart HTML ──────────────────────────────────────────────────
+
+chart_files = ["chart-rtt.svg", "chart-peers.svg", "chart-rekeys.svg", "chart-rssi.svg"]
+chart_labels = {
+    "chart-rtt.svg": "Round-Trip Time",
+    "chart-peers.svg": "Peer Count",
+    "chart-rekeys.svg": "Rekey Events",
+    "chart-rssi.svg": "BLE RSSI",
+}
+charts_html = ""
+for cf in chart_files:
+    full = os.path.join(target_dir, cf)
+    if os.path.exists(full):
+        charts_html += f'''<div class="chart-card">
+  <a href="{esc(cf)}" target="_blank" title="Open raw SVG">
+    <img src="{esc(cf)}" alt="{esc(chart_labels.get(cf, cf))}" loading="lazy"/>
+  </a>
+  <div class="chart-label">{esc(chart_labels.get(cf, cf))}</div>
+</div>
+'''
+
+# ── Build table sections ─────────────────────────────────────────────
+
+def table(headers, rows, empty_msg="No data"):
+    if not rows:
+        return f'<p class="empty-section">{esc(empty_msg)}</p>'
+    h_html = "".join(f"<th>{esc(h)}</th>" for h in headers)
+    r_html = ""
+    for row in rows:
+        r_html += "<tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>"
+    return f'<table><thead><tr>{h_html}</tr></thead><tbody>{r_html}</tbody></table>'
+
+# Connections
+conn_rows = []
+for c in analysis.get("connections", []):
+    icon = bool_icon(c.get("connected", False))
+    conn_rows.append([
+        esc(c.get("pair", "")),
+        icon,
+        str(c.get("packets_sent", 0)),
+        str(c.get("packets_recv", 0)),
+    ])
+conn_table = table(["Pair", "Connected", "Packets Sent", "Packets Recv"], conn_rows, "No connections")
+
+# Peer Metrics (MMP)
+pm_rows = []
+for pm in analysis.get("peer_metrics", []):
+    loss = f'{pm.get("loss_min", 0)*100:.1f}% / {pm.get("loss_avg", 0)*100:.1f}% / {pm.get("loss_max", 0)*100:.1f}%'
+    if pm.get("rtt_min") is not None:
+        rtt = f'{pm["rtt_min"]:.0f}ms / {pm["rtt_avg"]:.0f}ms / {pm["rtt_max"]:.0f}ms'
+    else:
+        rtt = "N/A"
+    pm_rows.append([esc(pm.get("pair", "")), esc(loss), esc(rtt), str(pm.get("samples", 0))])
+pm_table = table(["Pair", "Loss (min/avg/max)", "RTT (min/avg/max)", "Samples"], pm_rows, "No MMP metrics")
+
+# Key Exchange
+ke_rows = []
+for ke in analysis.get("key_exchange", []):
+    ke_rows.append([esc(ke.get("pair", "")), str(ke.get("link_keys", 0)), str(ke.get("session_keys", 0)), esc(ke.get("coverage", ""))])
+ke_table = table(["Pair", "Link Keys", "Session Keys", "Coverage"], ke_rows, "No key exchange data")
+
+# Rekey Stats
+rk_rows = []
+for rs in analysis.get("rekey_stats", []):
+    interval = f'{rs["rekey_interval_avg_secs"]:.1f}s' if rs.get("rekey_interval_avg_secs") else "N/A"
+    rph = f'{rs["rekeys_per_hour"]:.0f}' if rs.get("rekeys_per_hour") else "N/A"
+    rk_rows.append([esc(rs.get("pair", "")), str(rs.get("total_rekeys", 0)), esc(interval), esc(rph)])
+rk_table = table(["Pair", "Total Rekeys", "Avg Interval", "Rekeys/Hour"], rk_rows, "No rekey data")
+
+# Disconnects
+dc_rows = []
+for d in analysis.get("disconnects", []):
+    dc_rows.append([esc(d.get("pair", "")), f'{d.get("t", 0)}s', bool_icon(d.get("reconnected", False))])
+dc_table = table(["Pair", "Time", "Reconnected"], dc_rows, "No disconnects detected")
+
+# Keylog Verification
+kv_rows = []
+for kv in analysis.get("keylog_verification", []):
+    kv_rows.append([esc(kv.get("pair", "")), str(kv.get("local_keys_parsed", 0)), str(kv.get("parse_errors", 0)),
+                     bool_icon(kv.get("decryption_ready", False)), esc(kv.get("note", ""))])
+kv_table = table(["Pair", "Keys Parsed", "Parse Errors", "Decryption Ready", "Note"], kv_rows, "No keylog verification data")
+
+# Assertions
+as_rows = []
+for a in analysis.get("assertions", []):
+    tag = bool_icon(a.get("passed", False))
+    as_rows.append([tag, esc(a.get("name", "")), esc(a.get("expected", "")), esc(a.get("actual", ""))])
+as_table = table(["Result", "Check", "Expected", "Actual"], as_rows, "No assertions")
+
+# RSSI Stats
+rssi_rows = []
+for rs in analysis.get("rssi_stats", []):
+    rssi_rows.append([esc(rs.get("device", "")), esc(rs.get("ble_addr", "")), str(rs.get("samples", 0)),
+                       str(rs.get("min", "")), str(rs.get("avg", "")), str(rs.get("max", ""))])
+rssi_table = table(["Device", "BLE Address", "Samples", "Min", "Avg", "Max"], rssi_rows, "No RSSI data")
+
+# Decryption Summary
+ds = analysis.get("decryption_summary")
+ds_html = ""
+if ds:
+    dec = ds.get("decryption", {})
+    msg_html = ""
+    msg_types = ds.get("link_messages", {})
+    if msg_types:
+        mt_rows = []
+        for name, info in sorted(msg_types.items(), key=lambda x: x[1].get("type_id", -1)):
+            mt_rows.append([esc(name), str(info.get("count", 0))])
+        msg_html = table(["Message Type", "Count"], mt_rows, "")
+    ds_html = f'''<div class="ds-summary">
+  <div class="ds-row"><span>Capture</span><span><code>{esc(ds.get("capture_file", ""))}</code></span></div>
+  <div class="ds-row"><span>Filter</span><span>{esc(ds.get("filter_method", ""))}</span></div>
+  <div class="ds-row"><span>FIPS L2CAP Frames</span><span>{ds.get("fips_l2cap_frames", 0)}</span></div>
+  <div class="ds-row"><span>Decrypted</span><span>{dec.get("decrypted_successfully", 0)}/{dec.get("total_attempted", 0)}</span></div>
+</div>
+{msg_html}'''
+
+# ── Breadcrumbs ───────────────────────────────────────────────────────
+
+short_commit = (fips_commit or commit or "")[:12]
+breadcrumbs = f'''<nav class="breadcrumb">
+  <a href="../../index.html">Dashboard</a>
+  <span class="sep">›</span>
+  <span>{esc(short_commit)}</span>
+  <span class="sep">›</span>
+  <span>{esc(scenario)}</span>
+</nav>'''
+
+# ── Assemble full HTML ────────────────────────────────────────────────
+
+report_html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIPS Lab — {esc(scenario)}</title>
+<style>
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:#f0f2f5;color:#1a1a2e;line-height:1.6;font-size:15px}}
+.header{{background:linear-gradient(135deg,#0a1628,#162447,#1f4068);color:#fff;padding:2rem;
+  box-shadow:0 2px 8px rgba(0,0,0,.2)}}
+.header h1{{font-size:1.4rem;font-weight:600;letter-spacing:.5px;margin-bottom:.5rem}}
+.verdict-banner{{display:inline-block;font-size:1.1rem;font-weight:700;padding:.6rem 1.6rem;
+  border-radius:8px;text-transform:uppercase;letter-spacing:.5px;margin:.5rem 0}}
+.v-pass{{background:#e6f4ea;color:#137333}}
+.v-fail{{background:#fce8e6;color:#d93025}}
+.v-degraded{{background:#fef7e0;color:#b06000}}
+.v-na{{background:#f1f3f4;color:#80868b}}
+.meta-grid{{display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:1rem;font-size:.9rem;opacity:.9}}
+.meta-grid dt{{font-weight:600;margin-right:.3rem}}
+.meta-grid dd{{margin-right:1.5rem;font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.85rem}}
+.breadcrumb{{font-size:.85rem;padding:1rem 0;max-width:960px;margin:0 auto}}
+.breadcrumb a{{color:#1f4068;text-decoration:none;font-weight:500}}
+.breadcrumb a:hover{{text-decoration:underline}}
+.breadcrumb .sep{{margin:0 .4rem;color:#999}}
+.container{{max-width:960px;margin:0 auto;padding:0 1rem 3rem}}
+section{{background:#fff;border-radius:8px;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}}
+.section-header{{padding:1rem 1.5rem;border-bottom:1px solid #eee;font-size:1rem;font-weight:600;
+  background:#fafbfc;color:#0a1628;display:flex;align-items:center;gap:.5rem}}
+.section-header .icon{{font-size:1.1rem}}
+.section-body{{padding:0}}
+table{{width:100%;border-collapse:collapse}}
+th{{text-align:left;padding:.6rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.5px;color:#666;background:#fafbfc;border-bottom:1px solid #eee}}
+td{{padding:.55rem 1rem;font-size:.875rem;border-bottom:1px solid #f5f5f5;vertical-align:middle}}
+tr:last-child td{{border-bottom:none}}
+tr:hover td{{background:#fafbfc}}
+code{{font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.82rem;
+  background:#f1f3f4;padding:1px 5px;border-radius:3px}}
+.empty-section{{padding:1.5rem;text-align:center;color:#999;font-size:.9rem}}
+.charts{{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:1.5rem}}
+.chart-card{{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
+.chart-card a{{display:block}}
+.chart-card img{{width:100%;height:auto;display:block}}
+.chart-label{{padding:.5rem 1rem;font-size:.8rem;font-weight:600;color:#666;text-align:center;
+  background:#fafbfc;border-top:1px solid #eee}}
+.ds-summary{{display:grid;grid-template-columns:200px 1fr;gap:.4rem 1rem;padding:1rem 1.5rem;font-size:.9rem}}
+.ds-row{{display:contents}}
+.ds-row span:first-child{{font-weight:600;color:#555}}
+.ds-row span:last-child{{font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.85rem}}
+.back-link{{display:inline-block;margin-top:.5rem;font-size:.8rem;color:rgba(255,255,255,.7);text-decoration:none}}
+.back-link:hover{{color:#fff}}
+@media(max-width:640px){{
+  .charts{{grid-template-columns:1fr}}
+  .meta-grid{{flex-direction:column;gap:.3rem}}
+  th,td{{padding:.4rem .6rem;font-size:.8rem}}
+  .header{{padding:1.2rem}}
+  .verdict-banner{{font-size:.9rem;padding:.5rem 1rem}}
+}}
+</style>
+</head>
+<body>
+<div class="header">
+  {breadcrumbs}
+  <h1>{esc(scenario)}</h1>
+  <div class="verdict-banner {verdict_css(verdict)}">{verdict_icon(verdict)} {esc(verdict)}</div>
+  <dl class="meta-grid">
+    <div><dt>Timestamp:</dt><dd>{esc(fmt_ts(timestamp))}</dd></div>
+    <div><dt>Duration:</dt><dd>{esc(fmt_dur(duration))}</dd></div>
+    <div><dt>Commit:</dt><dd><code>{esc(short_commit)}</code></dd></div>
+    {'<div><dt>Branch:</dt><dd>' + esc(fips_branch) + '</dd></div>' if fips_branch else ''}
+    {'<div><dt>Dirty:</dt><dd>yes</dd></div>' if fips_dirty else ''}
+  </dl>
+  <a class="back-link" href="../../index.html">← Back to Dashboard</a>
+</div>
+<div class="container">
+'''
+
+# ── Charts ─────────────────────────────────────────────────────────────
+
+if charts_html:
+    report_html += f'''<section>
+  <div class="section-header"><span class="icon">📊</span> Charts</div>
+  <div class="section-body"><div class="charts">{charts_html}</div></div>
+</section>
+'''
+
+# ── Assertions ─────────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">🔍</span> Assertions</div>
+  <div class="section-body">{as_table}</div>
+</section>
+'''
+
+# ── Connections ────────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">🔗</span> Connections</div>
+  <div class="section-body">{conn_table}</div>
+</section>
+'''
+
+# ── MMP Metrics ────────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">📈</span> MMP Metrics</div>
+  <div class="section-body">{pm_table}</div>
+</section>
+'''
+
+# ── Key Exchange ───────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">🔑</span> Key Exchange</div>
+  <div class="section-body">{ke_table}</div>
+</section>
+'''
+
+# ── Rekey Stats ────────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">🔄</span> Rekey Analysis</div>
+  <div class="section-body">{rk_table}</div>
+</section>
+'''
+
+# ── Disconnects ────────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">⚡</span> Disconnects</div>
+  <div class="section-body">{dc_table}</div>
+</section>
+'''
+
+# ── Keylog Verification ───────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">🔐</span> Keylog Verification</div>
+  <div class="section-body">{kv_table}</div>
+</section>
+'''
+
+# ── RSSI ───────────────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-header"><span class="icon">📶</span> BLE RSSI</div>
+  <div class="section-body">{rssi_table}</div>
+</section>
+'''
+
+# ── Decryption Summary ────────────────────────────────────────────────
+
+if ds_html:
+    report_html += f'''<section>
+  <div class="section-header"><span class="icon">🔓</span> BLE Capture Decryption</div>
+  <div class="section-body">{ds_html}</div>
+</section>
+'''
+
+# ── Raw files link ─────────────────────────────────────────────────────
+
+report_html += f'''<section>
+  <div class="section-body" style="padding:1rem 1.5rem;text-align:center">
+    <a href="analysis.md" style="color:#1f4068;font-weight:500">View raw analysis.md</a>
+  </div>
+</section>
+'''
+
+report_html += '</div>\n</body>\n</html>\n'
+
+# ── Write ──────────────────────────────────────────────────────────────
+
+out_path = os.path.join(target_dir, "report.html")
+with open(out_path, "w", encoding="utf-8") as f:
+    f.write(report_html)
+
+print(f"  Generated {out_path}")
+PYREPORT
+}
+
+generate_report_html "$TARGET_DIR"
+echo "==> Generated report.html"
+
 # ── Purge old runs ───────────────────────────────────────────────────
 
 purge_old_runs() {
@@ -378,7 +777,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .header .updated{font-size:.85rem;opacity:.8}
 .container{max-width:1100px;margin:2rem auto;padding:0 1rem}
 .summary{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
-.summary-card{background:#fff;border-radius:8px;padding:1rem 1.5rem;flex:1;min-width:160px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.summary-card{background:#fff;border-radius:8px;padding:1rem 1.5rem;flex:1;min-width:160px;box-shadow:0 1px 3px rgba(0,0,0,.08);transition:transform .15s ease,box-shadow .15s ease;cursor:default}
+.summary-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.12)}
 .summary-card .label{font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;color:#666;margin-bottom:.25rem}
 .summary-card .value{font-size:1.75rem;font-weight:700;color:#1a1a2e}
 .commit-group{background:#fff;border-radius:8px;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}
@@ -392,8 +792,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .run-row:last-child{border-bottom:none}
 .run-row:hover{background:#fafbfc}
 .chart-row{display:flex;gap:1rem;padding:.5rem 1.5rem 1rem;background:#fafbfc;border-bottom:1px solid #eee;flex-wrap:wrap}
-.chart-item{flex:1;min-width:260px;max-width:420px}
-.chart-item img{width:100%;height:auto}
+.chart-item{flex:1;min-width:260px;max-width:420px;position:relative}
+.chart-item img{width:100%;height:auto;display:block;border-radius:4px}
+.chart-link{display:block;position:relative;text-decoration:none;color:inherit}
+.chart-link .chart-hover-label{position:absolute;bottom:0;left:0;right:0;padding:8px 0;background:rgba(15,25,50,.75);color:#fff;font-size:.75rem;text-align:center;letter-spacing:.3px;opacity:0;transition:opacity .2s ease;border-radius:0 0 4px 4px}
+.chart-link:hover .chart-hover-label{opacity:1}
+.chart-link:hover img{box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .run-time{color:#555;font-variant-numeric:tabular-nums}
 .run-scenario{font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.8rem;color:#444}
 .verdict{display:inline-block;font-size:.75rem;font-weight:600;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.3px;text-align:center}
@@ -409,6 +813,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .run-link a:hover{text-decoration:underline}
 .run-header{display:grid;grid-template-columns:170px 150px 70px 80px 120px 1fr;padding:.5rem 1.5rem;background:#fafbfc;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#666;border-bottom:1px solid #eee;gap:.5rem}
 .empty{padding:3rem;text-align:center;color:#888;font-size:1rem}
+.footer{max-width:1100px;margin:0 auto 2rem;padding:1rem;text-align:center;font-size:.8rem;color:#888;border-top:1px solid #e0e0e0}
+.footer a{color:#1f4068;text-decoration:none}
+.footer a:hover{text-decoration:underline}
+@media(prefers-color-scheme:dark){body{background:#0d1117;color:#c9d1d9}.summary-card{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.summary-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.5)}.summary-card .label{color:#8b949e}.summary-card .value{color:#f0f6fc}.commit-group{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.commit-header{border-bottom-color:#30363d}.commit-header .hash a{color:#58a6ff}.branch-badge{background:#1f2937;color:#58a6ff}.run-row{border-bottom-color:#21262d}.run-row:hover{background:#1c2128}.chart-row{background:#0d1117;border-bottom-color:#30363d}.run-header{background:#161b22;border-bottom-color:#30363d;color:#8b949e}.run-time,.run-scenario,.assertions{color:#8b949e}.run-link a{color:#58a6ff}.verdict-pass{background:#0d2818;color:#3fb950}.verdict-fail{background:#3d1214;color:#f85149}.verdict-degraded{background:#3d2e00;color:#d29922}.verdict-insufficient_data,.verdict-na{background:#21262d;color:#8b949e}.footer{color:#484f58;border-top-color:#30363d}.footer a{color:#58a6ff}.chart-link:hover img{box-shadow:0 2px 8px rgba(0,0,0,.4)}}
 </style>
 </head>
 <body>
@@ -491,10 +899,12 @@ DASHHEAD
           assertions_display="N/A"
         fi
 
-        # Link to analysis.md if it exists, otherwise to the directory listing
         local report_path="reports/${hash_name}/${ts_name}/"
         local report_label="Browse"
-        if [ -f "$reports_dir/${hash_name}/${ts_name}/analysis.md" ]; then
+        if [ -f "$reports_dir/${hash_name}/${ts_name}/report.html" ]; then
+          report_path="reports/${hash_name}/${ts_name}/report.html"
+          report_label="Report"
+        elif [ -f "$reports_dir/${hash_name}/${ts_name}/analysis.md" ]; then
           report_path="reports/${hash_name}/${ts_name}/analysis.md"
           report_label="Analysis"
         elif [ -f "$reports_dir/${hash_name}/${ts_name}/analysis.txt" ]; then
@@ -514,19 +924,23 @@ DASHHEAD
         local chart_rtt="$reports_dir/${hash_name}/${ts_name}/chart-rtt.svg"
         local chart_peers="$reports_dir/${hash_name}/${ts_name}/chart-peers.svg"
         local chart_rekeys="$reports_dir/${hash_name}/${ts_name}/chart-rekeys.svg"
+        local chart_rssi="$reports_dir/${hash_name}/${ts_name}/chart-rssi.svg"
         local has_charts=false
-        [ -f "$chart_rtt" ] || [ -f "$chart_peers" ] || [ -f "$chart_rekeys" ] && has_charts=true
+        [ -f "$chart_rtt" ] || [ -f "$chart_peers" ] || [ -f "$chart_rekeys" ] || [ -f "$chart_rssi" ] && has_charts=true
 
         if $has_charts; then
           echo '<div class="chart-row">' >> "$dash_file"
           if [ -f "$chart_rtt" ]; then
-            echo "<div class=\"chart-item\"><img src=\"reports/${hash_name}/${ts_name}/chart-rtt.svg\" alt=\"RTT Chart\" loading=\"lazy\"/></div>" >> "$dash_file"
+            echo "<div class=\"chart-item\"><a class=\"chart-link\" href=\"reports/${hash_name}/${ts_name}/chart-rtt.svg\" target=\"_blank\" rel=\"noopener\"><img src=\"reports/${hash_name}/${ts_name}/chart-rtt.svg\" alt=\"RTT Chart\" loading=\"lazy\"/><span class=\"chart-hover-label\">View full size</span></a></div>" >> "$dash_file"
           fi
           if [ -f "$chart_peers" ]; then
-            echo "<div class=\"chart-item\"><img src=\"reports/${hash_name}/${ts_name}/chart-peers.svg\" alt=\"Peer Count Chart\" loading=\"lazy\"/></div>" >> "$dash_file"
+            echo "<div class=\"chart-item\"><a class=\"chart-link\" href=\"reports/${hash_name}/${ts_name}/chart-peers.svg\" target=\"_blank\" rel=\"noopener\"><img src=\"reports/${hash_name}/${ts_name}/chart-peers.svg\" alt=\"Peer Count Chart\" loading=\"lazy\"/><span class=\"chart-hover-label\">View full size</span></a></div>" >> "$dash_file"
           fi
           if [ -f "$chart_rekeys" ]; then
-            echo "<div class=\"chart-item\"><img src=\"reports/${hash_name}/${ts_name}/chart-rekeys.svg\" alt=\"Rekey Events Chart\" loading=\"lazy\"/></div>" >> "$dash_file"
+            echo "<div class=\"chart-item\"><a class=\"chart-link\" href=\"reports/${hash_name}/${ts_name}/chart-rekeys.svg\" target=\"_blank\" rel=\"noopener\"><img src=\"reports/${hash_name}/${ts_name}/chart-rekeys.svg\" alt=\"Rekey Events Chart\" loading=\"lazy\"/><span class=\"chart-hover-label\">View full size</span></a></div>" >> "$dash_file"
+          fi
+          if [ -f "$chart_rssi" ]; then
+            echo "<div class=\"chart-item\"><a class=\"chart-link\" href=\"reports/${hash_name}/${ts_name}/chart-rssi.svg\" target=\"_blank\" rel=\"noopener\"><img src=\"reports/${hash_name}/${ts_name}/chart-rssi.svg\" alt=\"RSSI Chart\" loading=\"lazy\"/><span class=\"chart-hover-label\">View full size</span></a></div>" >> "$dash_file"
           fi
           echo '</div>' >> "$dash_file"
         fi
@@ -545,6 +959,7 @@ DASHHEAD
 
   cat >> "$dash_file" <<'DASHFOOT'
 </div>
+<div class="footer">Powered by <a href="https://github.com/Amperstrand/fips-lab">fips-lab</a></div>
 </body>
 </html>
 DASHFOOT
