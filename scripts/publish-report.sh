@@ -992,26 +992,44 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 DASHHEAD
 
   # ── Device Compatibility Matrix ────────────────────────────────────
+  # (macOS bash 3.x has no declare -A, so we use a temp file as a kv store)
 
-  declare -A matrix_data
+  local mx_tmpfile
+  mx_tmpfile="$(mktemp)"
   if [ -f "$runs_file" ] && [ -s "$runs_file" ]; then
     while IFS='|' read -r _ mx_hash mx_ts mx_scenario _ _ mx_verdict _ _ _ _; do
-      local -a mx_pairs=()
+      local mx_pair=""
       case "$mx_scenario" in
-        lab-2node-ble)       mx_pairs=("linux:mac") ;;
-        lab-3node-isolated)  mx_pairs=("linux:mac" "esp32:linux") ;;
-        lab-3node-m5pico)    mx_pairs=("linux:mac" "linux:m5pico") ;;
-        microfips-smoke)     mx_pairs=("esp32:linux") ;;
+        lab-2node-ble)       mx_pair="linux:mac" ;;
+        lab-3node-isolated)  
+          for mx_sub in "linux:mac" "esp32:linux"; do
+            if ! grep -q "^${mx_sub}|" "$mx_tmpfile" 2>/dev/null; then
+              local mx_rp="reports/${mx_hash}/${mx_ts}/"
+              [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rp="reports/${mx_hash}/${mx_ts}/report.html"
+              echo "${mx_sub}|${mx_verdict}|${mx_rp}" >> "$mx_tmpfile"
+            fi
+          done
+          continue
+          ;;
+        lab-3node-m5pico)   
+          for mx_sub in "linux:mac" "linux:m5pico"; do
+            if ! grep -q "^${mx_sub}|" "$mx_tmpfile" 2>/dev/null; then
+              local mx_rp="reports/${mx_hash}/${mx_ts}/"
+              [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rp="reports/${mx_hash}/${mx_ts}/report.html"
+              echo "${mx_sub}|${mx_verdict}|${mx_rp}" >> "$mx_tmpfile"
+            fi
+          done
+          continue
+          ;;
+        microfips-smoke)     mx_pair="esp32:linux" ;;
         *)                   continue ;;
       esac
 
-      for mx_pair in "${mx_pairs[@]}"; do
-        if [ -z "${matrix_data[$mx_pair]:-}" ]; then
-          local mx_rpath="reports/${mx_hash}/${mx_ts}/"
-          [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rpath="reports/${mx_hash}/${mx_ts}/report.html"
-          matrix_data[$mx_pair]="${mx_verdict}|${mx_rpath}"
-        fi
-      done
+      if [ -n "$mx_pair" ] && ! grep -q "^${mx_pair}|" "$mx_tmpfile" 2>/dev/null; then
+        local mx_rp="reports/${mx_hash}/${mx_ts}/"
+        [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rp="reports/${mx_hash}/${mx_ts}/report.html"
+        echo "${mx_pair}|${mx_verdict}|${mx_rp}" >> "$mx_tmpfile"
+      fi
     done < <(sort -t'|' -k1 -r "$runs_file")
   fi
 
@@ -1031,19 +1049,19 @@ DASHHEAD
           mx_ckey="${mx_row}:${mx_col}"
         fi
 
-        mx_cval="${matrix_data[$mx_ckey]:-}"
-        if [ -n "$mx_cval" ]; then
-          mx_cv="${mx_cval%%|*}"
-          mx_cp="${mx_cval#*|}"
+        mx_line="$(grep "^${mx_ckey}|" "$mx_tmpfile" 2>/dev/null | head -1)"
+        if [ -n "$mx_line" ]; then
+          mx_cv="$(echo "$mx_line" | cut -d'|' -f2)"
+          mx_cp="$(echo "$mx_line" | cut -d'|' -f3)"
           case "$mx_cv" in
             PASS)     mx_cc="matrix-pass" ;;
             FAIL)     mx_cc="matrix-fail" ;;
             DEGRADED) mx_cc="matrix-degraded" ;;
             *)        mx_cc="matrix-empty" ;;
           esac
-          mx_row_html+="<td class=\"matrix-cell ${mx_cc}\"><a href=\"${mx_cp}\">${mx_cv}</a></td>"
+          mx_row_html="${mx_row_html}<td class=\"matrix-cell ${mx_cc}\"><a href=\"${mx_cp}\">${mx_cv}</a></td>"
         else
-          mx_row_html+="<td class=\"matrix-cell matrix-empty\">—</td>"
+          mx_row_html="${mx_row_html}<td class=\"matrix-cell matrix-empty\">—</td>"
         fi
       done
       echo "${mx_row_html}</tr>"
@@ -1051,6 +1069,7 @@ DASHHEAD
 
     echo '</tbody></table></div>'
   } >> "$dash_file"
+  rm -f "$mx_tmpfile"
 
   # ── Emit commit groups ─────────────────────────────────────────────
 
