@@ -271,6 +271,11 @@ fips_commit = fips_git.get("commit", commit)
 fips_branch = fips_git.get("branch", "")
 fips_dirty = fips_git.get("dirty", False)
 
+microfips_git = meta.get("microfips_git", {})
+microfips_commit = microfips_git.get("commit", "")
+microfips_branch = microfips_git.get("branch", "")
+microfips_mode = microfips_git.get("mode", "")
+
 # ── Build chart HTML ──────────────────────────────────────────────────
 
 chart_files = ["chart-rtt.svg", "chart-peers.svg", "chart-rekeys.svg", "chart-rssi.svg"]
@@ -419,7 +424,7 @@ short_commit = (fips_commit or commit or "")[:12]
 breadcrumbs = f'''<nav class="breadcrumb">
   <a href="../../index.html">Dashboard</a>
   <span class="sep">›</span>
-  <span>{esc(short_commit)}</span>
+  <a href="https://github.com/Amperstrand/fips/tree/rebuild/macos-ble-upstream/{esc(fips_commit or commit or "")}">{esc(short_commit)}</a>
   <span class="sep">›</span>
   <span>{esc(scenario)}</span>
 </nav>'''
@@ -518,6 +523,7 @@ details[open] summary span:first-of-type{{}}
   padding:.5rem 1rem;border-radius:6px;font-size:.8rem;font-weight:600;opacity:.7;transition:opacity .2s;z-index:100;
   box-shadow:0 2px 8px rgba(0,0,0,.2)}}
 .back-to-top:hover{{opacity:1}}
+.microfips-tag{{display:inline-block;font-size:.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#fce4ec;color:#880e4f;letter-spacing:.3px;vertical-align:middle;white-space:nowrap}}
 @media(prefers-color-scheme:dark){{
   body{{background:#0d1117;color:#c9d1d9}}
   section{{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}}
@@ -543,6 +549,7 @@ details[open] summary span:first-of-type{{}}
   .pf-red{{background:#f85149}}
   .assertion-summary{{border-bottom-color:#30363d}}
   .back-to-top{{background:#30363d;color:#c9d1d9}}
+  .microfips-tag{{background:#3d1520;color:#f06292}}
   details summary .section-header{{background:#161b22;color:#c9d1d9}}
   details summary span:last-of-type{{color:#8b949e}}
   ul a{{color:#58a6ff !important}}
@@ -560,6 +567,7 @@ details[open] summary span:first-of-type{{}}
     <div><dt>Commit:</dt><dd><code>{esc(short_commit)}</code></dd></div>
     {'<div><dt>Branch:</dt><dd>' + esc(fips_branch) + '</dd></div>' if fips_branch else ''}
     {'<div><dt>Dirty:</dt><dd>yes</dd></div>' if fips_dirty else ''}
+    {'<div><dt>microfips:</dt><dd><code>' + esc(microfips_commit[:12]) + '</code> ' + ('<span class="microfips-tag">' + esc(microfips_mode) + '</span>' if microfips_mode else '') + '</dd></div>' if microfips_commit else ''}
   </dl>
   <a class="back-link" href="../../index.html">← Back to Dashboard</a>
 </div>
@@ -801,7 +809,7 @@ generate_dashboard() {
       [ ! -f "$meta_json" ] && continue
 
       local r_scenario r_timestamp r_duration r_verdict r_assert_total r_assert_passed
-      local r_fips_commit r_fips_branch
+      local r_fips_commit r_fips_branch r_microfips_commit r_microfips_mode
 
       r_scenario="$(json_string "$meta_json" scenario || true)"
       r_timestamp="$(json_string "$meta_json" timestamp || true)"
@@ -813,6 +821,9 @@ generate_dashboard() {
       r_fips_commit="$(json_nested_string "$meta_json" fips_git commit || true)"
       r_fips_commit="${r_fips_commit:-$(json_string "$meta_json" commit || true)}"
       r_fips_branch="$(json_nested_string "$meta_json" fips_git branch || true)"
+
+      r_microfips_commit="$(json_nested_string "$meta_json" microfips_git commit || true)"
+      r_microfips_mode="$(json_nested_string "$meta_json" microfips_git mode || true)"
 
       r_verdict="N/A"
       r_assert_total="0"
@@ -832,7 +843,7 @@ generate_dashboard() {
       local sort_ts="${r_timestamp:-$ts_name}"
       sort_ts="$(echo "$sort_ts" | tr -d ':Z' | sed 's/T/ /')"
 
-      echo "${sort_ts}|${hash_name}|${ts_name}|${r_scenario}|${r_timestamp}|${r_duration}|${r_verdict}|${r_assert_total}|${r_assert_passed}|${r_fips_commit}|${r_fips_branch}" >> "$runs_file"
+      echo "${sort_ts}|${hash_name}|${ts_name}|${r_scenario}|${r_timestamp}|${r_duration}|${r_verdict}|${r_assert_total}|${r_assert_passed}|${r_fips_commit}|${r_fips_branch}|${r_microfips_commit:-}|${r_microfips_mode:-}" >> "$runs_file"
     done
   done
 
@@ -945,11 +956,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .footer a{color:#1f4068;text-decoration:none}
 .footer a:hover{text-decoration:underline}
 .scenario-badge{display:inline-block;font-size:.7rem;font-weight:500;padding:3px 10px;border-radius:12px;background:#f0f1f3;color:#555;letter-spacing:.3px;vertical-align:middle}
+.microfips-tag{display:inline-block;font-size:.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#fce4ec;color:#880e4f;letter-spacing:.3px;vertical-align:middle;white-space:nowrap}
 .view-report{padding:.3rem 1.5rem .8rem;font-size:.8rem}
 .view-report a{color:#1f4068;text-decoration:none;font-weight:500}
 .view-report a:hover{text-decoration:underline}
 @media(max-width:768px){.run-row{display:flex;flex-wrap:wrap;gap:.3rem;padding:.5rem 1rem}.run-row span{flex:1 1 45%;min-width:100px}.run-header{display:none}.header{flex-direction:column;gap:.5rem;text-align:center}.summary-card{min-width:100%}.chart-row{padding:.5rem 1rem}.chart-item{min-width:100%;max-width:100%}}
-@media(prefers-color-scheme:dark){body{background:#0d1117;color:#c9d1d9}.summary-card{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.summary-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.5)}.summary-card .label{color:#8b949e}.summary-card .value{color:#f0f6fc}.commit-group{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.commit-header{border-bottom-color:#30363d}.commit-header .hash a{color:#58a6ff}.branch-badge{background:#1f2937;color:#58a6ff}.run-row{border-bottom-color:#21262d}.run-row:hover{background:#1c2128}.chart-row{background:#0d1117;border-bottom-color:#30363d}.run-header{background:#161b22;border-bottom-color:#30363d;color:#8b949e}.run-time,.run-scenario,.assertions{color:#8b949e}.run-link a{color:#58a6ff}.verdict-pass{background:#0d2818;color:#3fb950}.verdict-fail{background:#3d1214;color:#f85149}.verdict-degraded{background:#3d2e00;color:#d29922}.verdict-insufficient_data,.verdict-na{background:#21262d;color:#8b949e}.footer{color:#484f58;border-top-color:#30363d}.footer a{color:#58a6ff}.chart-link:hover img{box-shadow:0 2px 8px rgba(0,0,0,.4)}.scenario-badge{background:#21262d;color:#8b949e}.view-report a{color:#58a6ff}}
+@media(prefers-color-scheme:dark){body{background:#0d1117;color:#c9d1d9}.summary-card{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.summary-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.5)}.summary-card .label{color:#8b949e}.summary-card .value{color:#f0f6fc}.commit-group{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.commit-header{border-bottom-color:#30363d}.commit-header .hash a{color:#58a6ff}.branch-badge{background:#1f2937;color:#58a6ff}.run-row{border-bottom-color:#21262d}.run-row:hover{background:#1c2128}.chart-row{background:#0d1117;border-bottom-color:#30363d}.run-header{background:#161b22;border-bottom-color:#30363d;color:#8b949e}.run-time,.run-scenario,.assertions{color:#8b949e}.run-link a{color:#58a6ff}.verdict-pass{background:#0d2818;color:#3fb950}.verdict-fail{background:#3d1214;color:#f85149}.verdict-degraded{background:#3d2e00;color:#d29922}.verdict-insufficient_data,.verdict-na{background:#21262d;color:#8b949e}.footer{color:#484f58;border-top-color:#30363d}.footer a{color:#58a6ff}.chart-link:hover img{box-shadow:0 2px 8px rgba(0,0,0,.4)}.scenario-badge{background:#21262d;color:#8b949e}.view-report a{color:#58a6ff}.microfips-tag{background:#3d1520;color:#f06292}}
+.matrix-section{background:#fff;border-radius:8px;margin-bottom:2rem;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}
+.matrix-header{padding:1rem 1.5rem;border-bottom:1px solid #eee;font-size:1rem;font-weight:600;background:#fafbfc;color:#0a1628;border-left:4px solid #1f4068}
+.matrix-table{width:auto;margin:0 auto;border-collapse:collapse}
+.matrix-table th{padding:.5rem 1.2rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#666;background:#fafbfc;border-bottom:1px solid #eee;text-align:center}
+.matrix-table td{padding:.6rem 1rem;text-align:center;border-bottom:1px solid #f5f5f5;font-size:.85rem}
+.matrix-row-label{font-weight:600;text-align:left!important;padding-left:1.5rem!important;color:#444}
+.matrix-cell{min-width:90px}
+.matrix-cell a{display:block;text-decoration:none;color:inherit;font-weight:600;padding:.3rem .6rem;border-radius:4px;transition:opacity .15s ease}
+.matrix-cell a:hover{opacity:.75}
+.matrix-pass{background:#e6f4ea;color:#137333}
+.matrix-fail{background:#fce8e6;color:#d93025}
+.matrix-degraded{background:#fef7e0;color:#b06000}
+.matrix-empty{background:#f1f3f4;color:#80868b}
+@media(prefers-color-scheme:dark){.matrix-section{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.matrix-header{background:#161b22;color:#c9d1d9;border-bottom-color:#30363d}.matrix-table th{background:#21262d;color:#8b949e;border-bottom-color:#30363d}.matrix-table td{border-bottom-color:#21262d}.matrix-row-label{color:#c9d1d9}.matrix-pass{background:#0d2818;color:#3fb950}.matrix-fail{background:#3d1214;color:#f85149}.matrix-degraded{background:#3d2e00;color:#d29922}.matrix-empty{background:#21262d;color:#8b949e}}
 </style>
 </head>
 <body>
@@ -965,6 +991,67 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 </div>
 DASHHEAD
 
+  # ── Device Compatibility Matrix ────────────────────────────────────
+
+  declare -A matrix_data
+  if [ -f "$runs_file" ] && [ -s "$runs_file" ]; then
+    while IFS='|' read -r _ mx_hash mx_ts mx_scenario _ _ mx_verdict _ _ _ _; do
+      local -a mx_pairs=()
+      case "$mx_scenario" in
+        lab-2node-ble)       mx_pairs=("linux:mac") ;;
+        lab-3node-isolated)  mx_pairs=("linux:mac" "esp32:linux") ;;
+        lab-3node-m5pico)    mx_pairs=("linux:mac" "linux:m5pico") ;;
+        microfips-smoke)     mx_pairs=("esp32:linux") ;;
+        *)                   continue ;;
+      esac
+
+      for mx_pair in "${mx_pairs[@]}"; do
+        if [ -z "${matrix_data[$mx_pair]:-}" ]; then
+          local mx_rpath="reports/${mx_hash}/${mx_ts}/"
+          [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rpath="reports/${mx_hash}/${mx_ts}/report.html"
+          matrix_data[$mx_pair]="${mx_verdict}|${mx_rpath}"
+        fi
+      done
+    done < <(sort -t'|' -k1 -r "$runs_file")
+  fi
+
+  {
+    echo '<div class="matrix-section">'
+    echo '<div class="matrix-header">🔗 Device Compatibility Matrix</div>'
+    echo '<table class="matrix-table">'
+    echo '<thead><tr><th></th><th>linux</th><th>esp32</th><th>m5pico</th></tr></thead>'
+    echo '<tbody>'
+
+    for mx_row in "mac" "linux"; do
+      mx_row_html="<tr><td class=\"matrix-row-label\">${mx_row}</td>"
+      for mx_col in "linux" "esp32" "m5pico"; do
+        if [[ "$mx_row" < "$mx_col" ]]; then
+          mx_ckey="${mx_col}:${mx_row}"
+        else
+          mx_ckey="${mx_row}:${mx_col}"
+        fi
+
+        mx_cval="${matrix_data[$mx_ckey]:-}"
+        if [ -n "$mx_cval" ]; then
+          mx_cv="${mx_cval%%|*}"
+          mx_cp="${mx_cval#*|}"
+          case "$mx_cv" in
+            PASS)     mx_cc="matrix-pass" ;;
+            FAIL)     mx_cc="matrix-fail" ;;
+            DEGRADED) mx_cc="matrix-degraded" ;;
+            *)        mx_cc="matrix-empty" ;;
+          esac
+          mx_row_html+="<td class=\"matrix-cell ${mx_cc}\"><a href=\"${mx_cp}\">${mx_cv}</a></td>"
+        else
+          mx_row_html+="<td class=\"matrix-cell matrix-empty\">—</td>"
+        fi
+      done
+      echo "${mx_row_html}</tr>"
+    done
+
+    echo '</tbody></table></div>'
+  } >> "$dash_file"
+
   # ── Emit commit groups ─────────────────────────────────────────────
 
   if [ -f "$runs_file" ] && [ -s "$runs_file" ]; then
@@ -975,7 +1062,7 @@ DASHHEAD
     while IFS= read -r hash_name; do
       [ -z "$hash_name" ] && continue
       local short_hash="${hash_name:0:12}"
-      local commit_url="https://github.com/Amperstrand/fips/commit/${hash_name}"
+      local commit_url="https://github.com/Amperstrand/fips/tree/rebuild/macos-ble-upstream/${hash_name}"
 
       local first_line
       first_line="$(grep "|${hash_name}|" "$runs_file" | sort -t'|' -k1 -r | head -1)"
@@ -999,7 +1086,7 @@ DASHHEAD
       echo '<div class="run-header"><span>Timestamp</span><span>Scenario</span><span>Duration</span><span>Verdict</span><span>Assertions</span><span>Details</span></div>' >> "$dash_file"
       echo '<div class="runs">' >> "$dash_file"
 
-      grep "|${hash_name}|" "$runs_file" | sort -t'|' -k1 -r | while IFS='|' read -r _ _ ts_name r_scenario r_timestamp r_duration r_verdict r_assert_total r_assert_passed r_fips_commit r_fips_branch; do
+      grep "|${hash_name}|" "$runs_file" | sort -t'|' -k1 -r | while IFS='|' read -r _ _ ts_name r_scenario r_timestamp r_duration r_verdict r_assert_total r_assert_passed r_fips_commit r_fips_branch r_microfips_commit r_microfips_mode; do
         local display_time
         if [ -n "$r_timestamp" ]; then
           display_time="$(format_timestamp "$r_timestamp")"
@@ -1052,7 +1139,11 @@ DASHHEAD
 
         echo "<div class=\"run-row\">" >> "$dash_file"
         echo "<span class=\"run-time\">${display_time}</span>" >> "$dash_file"
-        echo "<span class=\"run-scenario\"><strong>${r_scenario}</strong></span>" >> "$dash_file"
+        local scenario_display="${r_scenario}"
+        if [ -n "$r_microfips_commit" ] && [ "$r_microfips_commit" != "" ]; then
+          scenario_display="${r_scenario} <span class=\"microfips-tag\">µ ${r_microfips_mode:-ble} ${r_microfips_commit:0:8}</span>"
+        fi
+        echo "<span class=\"run-scenario\"><strong>${scenario_display}</strong></span>" >> "$dash_file"
         echo "<span>${duration_display}</span>" >> "$dash_file"
         echo "<span class=\"verdict ${verdict_class}\">${verdict_display}</span>" >> "$dash_file"
         echo "<span class=\"assertions\">${assertions_display}</span>" >> "$dash_file"

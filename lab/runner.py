@@ -108,6 +108,19 @@ class LabRunner:
             "lab": self.inventory.lab,
             "git": _git_metadata(Path.cwd()),
             "fips_git": _fips_git_metadata(self.resolved_configs),
+            "microfips_git": _microfips_git_metadata(self.scenario, self.resolved_configs),
+            "topology": {
+                "devices": [
+                    {
+                        "id": d["id"],
+                        "type": self.resolved_configs.get(str(d["id"]), {}).get("type"),
+                        "platform": self.resolved_configs.get(str(d["id"]), {}).get("platform"),
+                        "role": d.get("role"),
+                    }
+                    for d in self.scenario.topology_devices
+                ],
+                "links": self.scenario.raw.get("topology", {}).get("links", []),
+            },
             "devices": {
                 alias: {
                     "inventory_ref": config.get("inventory_ref"),
@@ -467,3 +480,85 @@ def _fips_git_metadata(resolved_configs: dict[str, dict[str, Any]]) -> dict[str,
         }
     except Exception:
         return {"commit": None, "branch": None, "dirty": None}
+
+
+def _microfips_git_metadata(
+    scenario: Scenario,
+    resolved_configs: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Extract git metadata from the microfips firmware repo.
+
+    Looks for a local microfips checkout:
+    1. ``scenario.raw["artifacts"]["microfips"]`` for repo path info
+    2. Any device config with ``type: microfips`` that has a ``repo_path``
+    3. Falls back to sibling directory ``../microfips`` relative to fips-lab
+
+    Also extracts the microfips mode from scenario topology (transport type
+    on links to microfips devices; defaults to "ble").
+    """
+    microfips_cfg = scenario.raw.get("artifacts", {}).get("microfips", {})
+    if not microfips_cfg:
+        has_microfips_device = any(
+            c.get("type") == "microfips" for c in resolved_configs.values()
+        )
+        if not has_microfips_device:
+            return {}
+
+    mode = "ble"
+    microfips_ids = {
+        alias for alias, cfg in resolved_configs.items() if cfg.get("type") == "microfips"
+    }
+    links = scenario.raw.get("topology", {}).get("links", [])
+    for link in links:
+        if link.get("to") in microfips_ids or link.get("from") in microfips_ids:
+            mode = link.get("transport", "ble")
+            break
+
+    repo_path: Path | None = None
+
+    for config in resolved_configs.values():
+        if config.get("type") != "microfips":
+            continue
+        rp = config.get("repo_path")
+        if rp:
+            candidate = Path(rp)
+            if (candidate / ".git").exists():
+                repo_path = candidate
+                break
+
+    if repo_path is None:
+        sibling = Path(__file__).resolve().parent.parent.parent / "microfips"
+        if (sibling / ".git").exists():
+            repo_path = sibling
+
+    result: dict[str, Any] = {
+        "mode": mode,
+        "repo": microfips_cfg.get("repo", ""),
+    }
+
+    if repo_path is None:
+        result.update({"commit": None, "branch": None, "dirty": None})
+        return result
+
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo_path,
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_path,
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=repo_path,
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        result.update({
+            "commit": commit.stdout.strip() if commit.returncode == 0 else None,
+            "branch": branch.stdout.strip() if branch.returncode == 0 else None,
+            "dirty": "yes" if dirty.stdout.strip() else "no",
+        })
+    except Exception:
+        result.update({"commit": None, "branch": None, "dirty": None})
+
+    return result
