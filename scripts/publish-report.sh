@@ -287,6 +287,7 @@ for cf in chart_files:
         charts_html += f'''<div class="chart-card">
   <a href="{esc(cf)}" target="_blank" title="Open raw SVG">
     <img src="{esc(cf)}" alt="{esc(chart_labels.get(cf, cf))}" loading="lazy"/>
+    <div class="chart-overlay"><span>Click to view full size</span></div>
   </a>
   <div class="chart-label">{esc(chart_labels.get(cf, cf))}</div>
 </div>
@@ -296,7 +297,7 @@ for cf in chart_files:
 
 def table(headers, rows, empty_msg="No data"):
     if not rows:
-        return f'<p class="empty-section">{esc(empty_msg)}</p>'
+        return f'<div class="empty-state"><span class="empty-icon">📭</span><span class="empty-msg">{esc(empty_msg)}</span></div>'
     h_html = "".join(f"<th>{esc(h)}</th>" for h in headers)
     r_html = ""
     for row in rows:
@@ -406,6 +407,11 @@ report_html = f'''<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FIPS Lab — {esc(scenario)}</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%231f4068'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-weight='bold' font-size='18' fill='white'%3EF%3C/text%3E%3C/svg%3E">
+<meta name="description" content="FIPS Lab test report for {esc(scenario)}">
+<meta property="og:title" content="FIPS Lab — {esc(scenario)}">
+<meta property="og:description" content="Test report for {esc(scenario)} scenario — Verdict: {esc(verdict)}">
+<meta property="og:type" content="article">
 <style>
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
 body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -429,7 +435,8 @@ body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica 
 .container{{max-width:960px;margin:0 auto;padding:0 1rem 3rem}}
 section{{background:#fff;border-radius:8px;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}}
 .section-header{{padding:1rem 1.5rem;border-bottom:1px solid #eee;font-size:1rem;font-weight:600;
-  background:#fafbfc;color:#0a1628;display:flex;align-items:center;gap:.5rem}}
+  background:#fafbfc;color:#0a1628;display:flex;align-items:center;gap:.5rem;
+  border-left:4px solid #1f4068}}
 .section-header .icon{{font-size:1.1rem}}
 .section-body{{padding:0}}
 table{{width:100%;border-collapse:collapse}}
@@ -440,11 +447,21 @@ tr:last-child td{{border-bottom:none}}
 tr:hover td{{background:#fafbfc}}
 code{{font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.82rem;
   background:#f1f3f4;padding:1px 5px;border-radius:3px}}
-.empty-section{{padding:1.5rem;text-align:center;color:#999;font-size:.9rem}}
+.empty-state{{padding:2rem;text-align:center;border:2px dashed #dde1e6;border-radius:6px;
+  margin:1rem;color:#999;font-size:.9rem}}
+.empty-state .empty-icon{{font-size:1.8rem;opacity:.35;display:block;margin-bottom:.5rem}}
+.empty-state .empty-msg{{color:#80868b}}
 .charts{{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:1.5rem}}
-.chart-card{{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
-.chart-card a{{display:block}}
+.chart-card{{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  transition:transform .2s ease,box-shadow .2s ease;position:relative}}
+.chart-card:hover{{transform:scale(1.02);box-shadow:0 8px 24px rgba(0,0,0,.15)}}
+.chart-card a{{display:block;position:relative}}
 .chart-card img{{width:100%;height:auto;display:block}}
+.chart-card .chart-overlay{{position:absolute;inset:0;background:rgba(15,22,40,.45);display:flex;
+  align-items:center;justify-content:center;opacity:0;transition:opacity .2s ease;pointer-events:none}}
+.chart-card:hover .chart-overlay{{opacity:1}}
+.chart-overlay span{{color:#fff;font-size:.85rem;font-weight:600;padding:.4rem 1rem;
+  background:rgba(255,255,255,.15);border-radius:4px;backdrop-filter:blur(2px)}}
 .chart-label{{padding:.5rem 1rem;font-size:.8rem;font-weight:600;color:#666;text-align:center;
   background:#fafbfc;border-top:1px solid #eee}}
 .ds-summary{{display:grid;grid-template-columns:200px 1fr;gap:.4rem 1rem;padding:1rem 1.5rem;font-size:.9rem}}
@@ -453,6 +470,10 @@ code{{font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.82rem;
 .ds-row span:last-child{{font-family:"SF Mono",SFMono-Regular,Consolas,monospace;font-size:.85rem}}
 .back-link{{display:inline-block;margin-top:.5rem;font-size:.8rem;color:rgba(255,255,255,.7);text-decoration:none}}
 .back-link:hover{{color:#fff}}
+details[open] summary .icon{{}}
+details summary::-webkit-details-marker{{display:none}}
+details summary::marker{{display:none;content:""}}
+details[open] summary span:first-of-type{{}}
 @media(max-width:640px){{
   .charts{{grid-template-columns:1fr}}
   .meta-grid{{flex-direction:column;gap:.3rem}}
@@ -563,12 +584,30 @@ if ds_html:
 
 # ── Raw files link ─────────────────────────────────────────────────────
 
-report_html += f'''<section>
-  <div class="section-body" style="padding:1rem 1.5rem;text-align:center">
-    <a href="analysis.md" style="color:#1f4068;font-weight:500">View raw analysis.md</a>
-  </div>
+raw_links = []
+for fname, label in [("analysis.json", "Analysis JSON"), ("analysis.md", "Analysis Markdown"), ("metrics-timeseries.json", "Metrics Timeseries")]:
+    if os.path.exists(os.path.join(target_dir, fname)):
+        raw_links.append(f'<li><a href="{esc(fname)}" style="color:#1f4068;font-weight:500">{esc(label)}</a> <span style="color:#999;font-size:.8rem">({esc(fname)})</span></li>')
+
+raw_data_html = ""
+if raw_links:
+    links_str = "\n".join(raw_links)
+    raw_data_html = f'''<section>
+  <details style="border:none;margin:0">
+    <summary class="section-header" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:.5rem;padding:1rem 1.5rem;border-bottom:1px solid #eee;font-size:1rem;font-weight:600;background:#fafbfc;color:#0a1628;border-left:4px solid #1f4068">
+      <span class="icon">📁</span> Raw Data
+      <span style="font-size:.7rem;color:#999;margin-left:auto">▶ expand</span>
+    </summary>
+    <div class="section-body" style="padding:1rem 1.5rem">
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:.6rem;font-size:.9rem">
+        {links_str}
+      </ul>
+    </div>
+  </details>
 </section>
 '''
+
+report_html += raw_data_html
 
 report_html += '</div>\n</body>\n</html>\n'
 
@@ -769,6 +808,11 @@ generate_dashboard() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FIPS Lab Test Reports</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%231f4068'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='sans-serif' font-weight='bold' font-size='18' fill='white'%3EF%3C/text%3E%3C/svg%3E">
+<meta property="og:title" content="FIPS Lab Test Reports">
+<meta property="og:description" content="Dashboard for FIPS Lab physical-device test results and analysis">
+<meta property="og:type" content="website">
+<meta name="description" content="FIPS Lab test report dashboard showing BLE connectivity, MMP metrics, and rekey analysis">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;line-height:1.5}
@@ -792,7 +836,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .run-row:last-child{border-bottom:none}
 .run-row:hover{background:#fafbfc}
 .chart-row{display:flex;gap:1rem;padding:.5rem 1.5rem 1rem;background:#fafbfc;border-bottom:1px solid #eee;flex-wrap:wrap}
+.chart-row.grid-2x2{display:grid;grid-template-columns:1fr 1fr;max-width:860px}
 .chart-item{flex:1;min-width:260px;max-width:420px;position:relative}
+.grid-2x2 .chart-item{max-width:none}
 .chart-item img{width:100%;height:auto;display:block;border-radius:4px}
 .chart-link{display:block;position:relative;text-decoration:none;color:inherit}
 .chart-link .chart-hover-label{position:absolute;bottom:0;left:0;right:0;padding:8px 0;background:rgba(15,25,50,.75);color:#fff;font-size:.75rem;text-align:center;letter-spacing:.3px;opacity:0;transition:opacity .2s ease;border-radius:0 0 4px 4px}
@@ -929,7 +975,16 @@ DASHHEAD
         [ -f "$chart_rtt" ] || [ -f "$chart_peers" ] || [ -f "$chart_rekeys" ] || [ -f "$chart_rssi" ] && has_charts=true
 
         if $has_charts; then
-          echo '<div class="chart-row">' >> "$dash_file"
+          local chart_count=0
+          [ -f "$chart_rtt" ] && chart_count=$((chart_count + 1))
+          [ -f "$chart_peers" ] && chart_count=$((chart_count + 1))
+          [ -f "$chart_rekeys" ] && chart_count=$((chart_count + 1))
+          [ -f "$chart_rssi" ] && chart_count=$((chart_count + 1))
+          if [ "$chart_count" -ge 4 ]; then
+            echo '<div class="chart-row grid-2x2">' >> "$dash_file"
+          else
+            echo '<div class="chart-row">' >> "$dash_file"
+          fi
           if [ -f "$chart_rtt" ]; then
             echo "<div class=\"chart-item\"><a class=\"chart-link\" href=\"reports/${hash_name}/${ts_name}/chart-rtt.svg\" target=\"_blank\" rel=\"noopener\"><img src=\"reports/${hash_name}/${ts_name}/chart-rtt.svg\" alt=\"RTT Chart\" loading=\"lazy\"/><span class=\"chart-hover-label\">View full size</span></a></div>" >> "$dash_file"
           fi
