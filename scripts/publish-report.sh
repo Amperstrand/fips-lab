@@ -994,42 +994,37 @@ DASHHEAD
   # ── Device Compatibility Matrix ────────────────────────────────────
   # (macOS bash 3.x has no declare -A, so we use a temp file as a kv store)
 
+  mx_normkey() {
+    local a="$1" b="$2"
+    if [[ "$a" < "$b" ]]; then echo "${b}:${a}"; else echo "${a}:${b}"; fi
+  }
+
   local mx_tmpfile
   mx_tmpfile="$(mktemp)"
   if [ -f "$runs_file" ] && [ -s "$runs_file" ]; then
     while IFS='|' read -r _ mx_hash mx_ts mx_scenario _ _ mx_verdict _ _ _ _; do
-      local mx_pair=""
+      local mx_pairs_raw=""
       case "$mx_scenario" in
-        lab-2node-ble)       mx_pair="linux:mac" ;;
-        lab-3node-isolated)  
-          for mx_sub in "linux:mac" "esp32:linux"; do
-            if ! grep -q "^${mx_sub}|" "$mx_tmpfile" 2>/dev/null; then
-              local mx_rp="reports/${mx_hash}/${mx_ts}/"
-              [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rp="reports/${mx_hash}/${mx_ts}/report.html"
-              echo "${mx_sub}|${mx_verdict}|${mx_rp}" >> "$mx_tmpfile"
-            fi
-          done
-          continue
-          ;;
-        lab-3node-m5pico)   
-          for mx_sub in "linux:mac" "linux:m5pico"; do
-            if ! grep -q "^${mx_sub}|" "$mx_tmpfile" 2>/dev/null; then
-              local mx_rp="reports/${mx_hash}/${mx_ts}/"
-              [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rp="reports/${mx_hash}/${mx_ts}/report.html"
-              echo "${mx_sub}|${mx_verdict}|${mx_rp}" >> "$mx_tmpfile"
-            fi
-          done
-          continue
-          ;;
-        microfips-smoke)     mx_pair="esp32:linux" ;;
+        lab-2node-ble)       mx_pairs_raw="linux mac" ;;
+        lab-3node-isolated)  mx_pairs_raw="linux mac esp32 linux" ;;
+        lab-3node-m5pico)    mx_pairs_raw="linux mac linux m5pico" ;;
+        microfips-smoke)     mx_pairs_raw="esp32 linux" ;;
         *)                   continue ;;
       esac
 
-      if [ -n "$mx_pair" ] && ! grep -q "^${mx_pair}|" "$mx_tmpfile" 2>/dev/null; then
-        local mx_rp="reports/${mx_hash}/${mx_ts}/"
-        [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rp="reports/${mx_hash}/${mx_ts}/report.html"
-        echo "${mx_pair}|${mx_verdict}|${mx_rp}" >> "$mx_tmpfile"
-      fi
+      local mx_a="" mx_b=""
+      for mx_w in $mx_pairs_raw; do
+        if [ -z "$mx_a" ]; then mx_a="$mx_w"; continue; fi
+        mx_b="$mx_w"
+        local mx_nk
+        mx_nk="$(mx_normkey "$mx_a" "$mx_b")"
+        if ! grep -q "^${mx_nk}|" "$mx_tmpfile" 2>/dev/null; then
+          local mx_rp="reports/${mx_hash}/${mx_ts}/"
+          [ -f "$reports_dir/${mx_hash}/${mx_ts}/report.html" ] && mx_rp="reports/${mx_hash}/${mx_ts}/report.html"
+          echo "${mx_nk}|${mx_verdict}|${mx_rp}" >> "$mx_tmpfile"
+        fi
+        mx_a=""
+      done
     done < <(sort -t'|' -k1 -r "$runs_file")
   fi
 
@@ -1043,11 +1038,7 @@ DASHHEAD
     for mx_row in "mac" "linux"; do
       mx_row_html="<tr><td class=\"matrix-row-label\">${mx_row}</td>"
       for mx_col in "linux" "esp32" "m5pico"; do
-        if [[ "$mx_row" < "$mx_col" ]]; then
-          mx_ckey="${mx_col}:${mx_row}"
-        else
-          mx_ckey="${mx_row}:${mx_col}"
-        fi
+        mx_ckey="$(mx_normkey "$mx_row" "$mx_col")"
 
         mx_line="$(grep "^${mx_ckey}|" "$mx_tmpfile" 2>/dev/null | head -1)"
         if [ -n "$mx_line" ]; then
