@@ -891,6 +891,24 @@ generate_dashboard() {
   fi
   latest_verdict="${latest_verdict:-N/A}"
 
+  local last7_summary="N/A"
+  if [ -f "$runs_file" ] && [ -s "$runs_file" ]; then
+    local l7_pass=0 l7_fail=0 l7_degraded=0 l7_other=0
+    local l7_tmpfile
+    l7_tmpfile="$(mktemp)"
+    sort -r "$runs_file" | head -7 > "$l7_tmpfile"
+    while IFS='|' read -r _ _ _ _ _ _ l7v _; do
+      case "$l7v" in
+        PASS)     l7_pass=$(( l7_pass + 1 )) ;;
+        FAIL)     l7_fail=$(( l7_fail + 1 )) ;;
+        DEGRADED) l7_degraded=$(( l7_degraded + 1 )) ;;
+        *)        l7_other=$(( l7_other + 1 )) ;;
+      esac
+    done < "$l7_tmpfile"
+    rm -f "$l7_tmpfile"
+    last7_summary="PASS:${l7_pass} FAIL:${l7_fail} DEGRADED:${l7_degraded}"
+  fi
+
   # ── Begin HTML output ──────────────────────────────────────────────
 
   cat > "$dash_file" <<'DASHHEAD'
@@ -976,6 +994,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .matrix-degraded{background:#fef7e0;color:#b06000}
 .matrix-empty{background:#f1f3f4;color:#80868b}
 @media(prefers-color-scheme:dark){.matrix-section{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.matrix-header{background:#161b22;color:#c9d1d9;border-bottom-color:#30363d}.matrix-table th{background:#21262d;color:#8b949e;border-bottom-color:#30363d}.matrix-table td{border-bottom-color:#21262d}.matrix-row-label{color:#c9d1d9}.matrix-pass{background:#0d2818;color:#3fb950}.matrix-fail{background:#3d1214;color:#f85149}.matrix-degraded{background:#3d2e00;color:#d29922}.matrix-empty{background:#21262d;color:#8b949e}}
+.trend-section{background:#fff;border-radius:8px;margin-bottom:2rem;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;padding:1rem 1.5rem}
+.trend-section .trend-label{font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;color:#666;margin-bottom:.5rem}
+.trend-strip{overflow:hidden;white-space:nowrap;height:40px}
+.trend-strip svg{display:block}
+@media(prefers-color-scheme:dark){.trend-section{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.trend-section .trend-label{color:#8b949e}}
 </style>
 </head>
 <body>
@@ -988,8 +1011,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 <div class="summary-card"><div class="label">Total Runs</div><div class="value">PLACEHOLDER_TOTAL_RUNS</div></div>
 <div class="summary-card"><div class="label">Commits Tested</div><div class="value">PLACEHOLDER_TOTAL_COMMITS</div></div>
 <div class="summary-card"><div class="label">Pass Rate</div><div class="value">PLACEHOLDER_PASS_RATE</div></div>
+<div class="summary-card"><div class="label">Last 7</div><div class="value" style="font-size:1rem;line-height:1.75">PLACEHOLDER_LAST7</div></div>
 </div>
 DASHHEAD
+
+  # ── Verdict trend strip (latest 30 runs, most recent on right) ─────
+  {
+    echo '<div class="trend-section">'
+    echo '<div class="trend-label">Verdict Trend</div>'
+    echo '<div class="trend-strip">'
+
+    if [ -f "$runs_file" ] && [ -s "$runs_file" ]; then
+      local trend_tmpfile
+      trend_tmpfile="$(mktemp)"
+      sort "$runs_file" | tail -30 > "$trend_tmpfile"
+      local trend_count
+      trend_count="$(wc -l < "$trend_tmpfile" | tr -d ' ')"
+      local svg_w=$(( trend_count * 20 + 4 ))
+      [ "$svg_w" -lt 10 ] && svg_w=10
+      echo "<svg width=\"100%\" height=\"40\" viewBox=\"0 0 ${svg_w} 40\" preserveAspectRatio=\"xMinYMid meet\" xmlns=\"http://www.w3.org/2000/svg\">"
+
+      local trend_i=0
+      while IFS='|' read -r _ _ _ td_scenario td_timestamp _ td_verdict _; do
+        local td_fill="#80868b"
+        case "$td_verdict" in
+          PASS)     td_fill="#137333" ;;
+          FAIL)     td_fill="#d93025" ;;
+          DEGRADED) td_fill="#b06000" ;;
+          *)        td_fill="#80868b" ;;
+        esac
+        local td_cx=$(( trend_i * 20 + 12 ))
+        local td_label="${td_timestamp:-unknown} — ${td_scenario:-?}"
+        echo "<circle cx=\"${td_cx}\" cy=\"20\" r=\"6\" fill=\"${td_fill}\"><title>${td_label}</title></circle>"
+        trend_i=$(( trend_i + 1 ))
+      done < "$trend_tmpfile"
+      rm -f "$trend_tmpfile"
+
+      echo '</svg>'
+    else
+      echo '<span style="color:#888;font-size:.85rem">No runs yet</span>'
+    fi
+
+    echo '</div>'
+    echo '</div>'
+  } >> "$dash_file"
 
   # ── Device Compatibility Matrix ────────────────────────────────────
   # (macOS bash 3.x has no declare -A, so we use a temp file as a kv store)
@@ -1052,7 +1117,7 @@ DASHHEAD
           esac
           mx_row_html="${mx_row_html}<td class=\"matrix-cell ${mx_cc}\"><a href=\"${mx_cp}\">${mx_cv}</a></td>"
         else
-          mx_row_html="${mx_row_html}<td class=\"matrix-cell matrix-empty\">—</td>"
+          mx_row_html="${mx_row_html}<td class=\"matrix-cell matrix-empty\" title=\"No test run yet\">—</td>"
         fi
       done
       echo "${mx_row_html}</tr>"
@@ -1221,6 +1286,7 @@ DASHFOOT
   sed -i.bak "s|PLACEHOLDER_PASS_RATE|${pass_rate}|g" "$dash_file"
   sed -i.bak "s|PLACEHOLDER_LATEST_VERDICT|${latest_verdict}|g" "$dash_file"
   sed -i.bak "s|PLACEHOLDER_LATEST_VERDICT_CLASS|${latest_verdict_class}|g" "$dash_file"
+  sed -i.bak "s|PLACEHOLDER_LAST7|${last7_summary}|g" "$dash_file"
   rm -f "${dash_file}.bak"
 
   rm -f "$runs_file"
