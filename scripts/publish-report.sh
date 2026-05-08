@@ -361,6 +361,19 @@ for a in analysis.get("assertions", []):
     as_rows.append([tag, esc(a.get("name", "")), esc(a.get("expected", "")), esc(a.get("actual", ""))])
 as_table = table(["Result", "Check", "Expected", "Actual"], as_rows, "No assertions")
 
+as_total = len(analysis.get("assertions", []))
+as_passed = sum(1 for a in analysis.get("assertions", []) if a.get("passed", False))
+as_pct = (as_passed / as_total * 100) if as_total > 0 else 100
+if as_pct == 100:
+    as_pf_class = "pf-green"
+elif as_pct >= 50:
+    as_pf_class = "pf-yellow"
+else:
+    as_pf_class = "pf-red"
+as_summary_html = ""
+if as_total > 0:
+    as_summary_html = f'<div class="assertion-summary"><span class="summary-text">{as_passed}/{as_total} passed ({as_pct:.0f}%)</span><div class="progress-bar" style="flex:1;max-width:200px"><div class="progress-fill {as_pf_class}" style="width:{as_pct:.1f}%"></div></div></div>'
+
 # RSSI Stats
 rssi_rows = []
 for rs in analysis.get("rssi_stats", []):
@@ -373,6 +386,15 @@ ds = analysis.get("decryption_summary")
 ds_html = ""
 if ds:
     dec = ds.get("decryption", {})
+    dec_ok = int(dec.get("decrypted_successfully", 0))
+    dec_total = int(dec.get("total_attempted", 0))
+    dec_pct = (dec_ok / dec_total * 100) if dec_total > 0 else 0
+    if dec_pct >= 95:
+        pf_class = "pf-green"
+    elif dec_pct >= 50:
+        pf_class = "pf-yellow"
+    else:
+        pf_class = "pf-red"
     msg_html = ""
     msg_types = ds.get("link_messages", {})
     if msg_types:
@@ -384,7 +406,10 @@ if ds:
   <div class="ds-row"><span>Capture</span><span><code>{esc(ds.get("capture_file", ""))}</code></span></div>
   <div class="ds-row"><span>Filter</span><span>{esc(ds.get("filter_method", ""))}</span></div>
   <div class="ds-row"><span>FIPS L2CAP Frames</span><span>{ds.get("fips_l2cap_frames", 0)}</span></div>
-  <div class="ds-row"><span>Decrypted</span><span>{dec.get("decrypted_successfully", 0)}/{dec.get("total_attempted", 0)}</span></div>
+  <div class="ds-row"><span>Decrypted</span><span>{dec_ok}/{dec_total} ({dec_pct:.1f}%)</span></div>
+</div>
+<div style="padding:0 1.5rem 1rem">
+  <div class="progress-bar"><div class="progress-fill {pf_class}" style="width:{dec_pct:.1f}%"></div></div>
 </div>
 {msg_html}'''
 
@@ -413,6 +438,7 @@ report_html = f'''<!DOCTYPE html>
 <meta property="og:description" content="Test report for {esc(scenario)} scenario — Verdict: {esc(verdict)}">
 <meta property="og:type" content="article">
 <style>
+html{{scroll-behavior:smooth}}
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
 body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   background:#f0f2f5;color:#1a1a2e;line-height:1.6;font-size:15px}}
@@ -481,6 +507,46 @@ details[open] summary span:first-of-type{{}}
   .header{{padding:1.2rem}}
   .verdict-banner{{font-size:.9rem;padding:.5rem 1rem}}
 }}
+.progress-bar{{background:#e8eaed;border-radius:4px;height:8px;overflow:hidden;margin-top:.3rem}}
+.progress-fill{{height:100%;border-radius:4px;transition:width .4s ease}}
+.pf-green{{background:#137333}}
+.pf-yellow{{background:#b06000}}
+.pf-red{{background:#d93025}}
+.assertion-summary{{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.5rem;font-size:.875rem;font-weight:600;border-bottom:1px solid #eee}}
+.assertion-summary .summary-text{{white-space:nowrap}}
+.back-to-top{{position:fixed;bottom:2rem;right:2rem;background:#1f4068;color:#fff;text-decoration:none;
+  padding:.5rem 1rem;border-radius:6px;font-size:.8rem;font-weight:600;opacity:.7;transition:opacity .2s;z-index:100;
+  box-shadow:0 2px 8px rgba(0,0,0,.2)}}
+.back-to-top:hover{{opacity:1}}
+@media(prefers-color-scheme:dark){{
+  body{{background:#0d1117;color:#c9d1d9}}
+  section{{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}}
+  .section-header{{background:#161b22;color:#c9d1d9;border-bottom-color:#30363d}}
+  .chart-card{{background:#161b22}}
+  .chart-label{{background:#161b22;color:#8b949e;border-top-color:#30363d}}
+  th{{background:#21262d;color:#8b949e;border-bottom-color:#30363d}}
+  td{{border-bottom-color:#21262d}}
+  tr:hover td{{background:#1c2128}}
+  code{{background:#21262d;color:#c9d1d9}}
+  .empty-state{{border-color:#30363d}}
+  .empty-state .empty-msg{{color:#8b949e}}
+  .breadcrumb a{{color:#58a6ff}}
+  .breadcrumb .sep{{color:#484f58}}
+  .ds-row span:first-child{{color:#8b949e}}
+  .v-pass{{background:#0f2918;color:#3fb950}}
+  .v-fail{{background:#3d1214;color:#f85149}}
+  .v-degraded{{background:#3d2e00;color:#d29922}}
+  .v-na{{background:#21262d;color:#8b949e}}
+  .progress-bar{{background:#21262d}}
+  .pf-green{{background:#3fb950}}
+  .pf-yellow{{background:#d29922}}
+  .pf-red{{background:#f85149}}
+  .assertion-summary{{border-bottom-color:#30363d}}
+  .back-to-top{{background:#30363d;color:#c9d1d9}}
+  details summary .section-header{{background:#161b22;color:#c9d1d9}}
+  details summary span:last-of-type{{color:#8b949e}}
+  ul a{{color:#58a6ff !important}}
+}}
 </style>
 </head>
 <body>
@@ -513,7 +579,7 @@ if charts_html:
 
 report_html += f'''<section>
   <div class="section-header"><span class="icon">🔍</span> Assertions</div>
-  <div class="section-body">{as_table}</div>
+  <div class="section-body">{as_summary_html}{as_table}</div>
 </section>
 '''
 
@@ -609,7 +675,7 @@ if raw_links:
 
 report_html += raw_data_html
 
-report_html += '</div>\n</body>\n</html>\n'
+report_html += '</div>\n<a href="#" class="back-to-top">↑ Top</a>\n</body>\n</html>\n'
 
 # ── Write ──────────────────────────────────────────────────────────────
 
@@ -799,6 +865,21 @@ generate_dashboard() {
     pass_rate="$(python3 -c "print(f'{${total_pass}/${total_runs}*100:.0f}%')" 2>/dev/null || echo "${total_pass}/${total_runs}")"
   fi
 
+  # Latest verdict for header badge
+  local latest_verdict="N/A"
+  local latest_verdict_class="verdict-na"
+  if [ -f "$runs_file" ] && [ -s "$runs_file" ]; then
+    latest_verdict="$(sort -r "$runs_file" | head -1 | cut -d'|' -f7)"
+    case "$latest_verdict" in
+      PASS)              latest_verdict_class="verdict-pass" ;;
+      FAIL)              latest_verdict_class="verdict-fail" ;;
+      DEGRADED)          latest_verdict_class="verdict-degraded" ;;
+      INSUFFICIENT_DATA) latest_verdict_class="verdict-insufficient_data" ;;
+      *)                 latest_verdict_class="verdict-na" ;;
+    esac
+  fi
+  latest_verdict="${latest_verdict:-N/A}"
+
   # ── Begin HTML output ──────────────────────────────────────────────
 
   cat > "$dash_file" <<'DASHHEAD'
@@ -815,6 +896,7 @@ generate_dashboard() {
 <meta name="description" content="FIPS Lab test report dashboard showing BLE connectivity, MMP metrics, and rekey analysis">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;line-height:1.5}
 .header{background:linear-gradient(135deg,#0a1628,#162447,#1f4068);color:#fff;padding:1.5rem 2rem;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .header h1{font-size:1.5rem;font-weight:600;letter-spacing:.5px}
@@ -862,13 +944,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .footer{max-width:1100px;margin:0 auto 2rem;padding:1rem;text-align:center;font-size:.8rem;color:#888;border-top:1px solid #e0e0e0}
 .footer a{color:#1f4068;text-decoration:none}
 .footer a:hover{text-decoration:underline}
-@media(prefers-color-scheme:dark){body{background:#0d1117;color:#c9d1d9}.summary-card{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.summary-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.5)}.summary-card .label{color:#8b949e}.summary-card .value{color:#f0f6fc}.commit-group{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.commit-header{border-bottom-color:#30363d}.commit-header .hash a{color:#58a6ff}.branch-badge{background:#1f2937;color:#58a6ff}.run-row{border-bottom-color:#21262d}.run-row:hover{background:#1c2128}.chart-row{background:#0d1117;border-bottom-color:#30363d}.run-header{background:#161b22;border-bottom-color:#30363d;color:#8b949e}.run-time,.run-scenario,.assertions{color:#8b949e}.run-link a{color:#58a6ff}.verdict-pass{background:#0d2818;color:#3fb950}.verdict-fail{background:#3d1214;color:#f85149}.verdict-degraded{background:#3d2e00;color:#d29922}.verdict-insufficient_data,.verdict-na{background:#21262d;color:#8b949e}.footer{color:#484f58;border-top-color:#30363d}.footer a{color:#58a6ff}.chart-link:hover img{box-shadow:0 2px 8px rgba(0,0,0,.4)}}
+.scenario-badge{display:inline-block;font-size:.7rem;font-weight:500;padding:3px 10px;border-radius:12px;background:#f0f1f3;color:#555;letter-spacing:.3px;vertical-align:middle}
+.view-report{padding:.3rem 1.5rem .8rem;font-size:.8rem}
+.view-report a{color:#1f4068;text-decoration:none;font-weight:500}
+.view-report a:hover{text-decoration:underline}
+@media(max-width:768px){.run-row{display:flex;flex-wrap:wrap;gap:.3rem;padding:.5rem 1rem}.run-row span{flex:1 1 45%;min-width:100px}.run-header{display:none}.header{flex-direction:column;gap:.5rem;text-align:center}.summary-card{min-width:100%}.chart-row{padding:.5rem 1rem}.chart-item{min-width:100%;max-width:100%}}
+@media(prefers-color-scheme:dark){body{background:#0d1117;color:#c9d1d9}.summary-card{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.summary-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.5)}.summary-card .label{color:#8b949e}.summary-card .value{color:#f0f6fc}.commit-group{background:#161b22;box-shadow:0 1px 3px rgba(0,0,0,.3)}.commit-header{border-bottom-color:#30363d}.commit-header .hash a{color:#58a6ff}.branch-badge{background:#1f2937;color:#58a6ff}.run-row{border-bottom-color:#21262d}.run-row:hover{background:#1c2128}.chart-row{background:#0d1117;border-bottom-color:#30363d}.run-header{background:#161b22;border-bottom-color:#30363d;color:#8b949e}.run-time,.run-scenario,.assertions{color:#8b949e}.run-link a{color:#58a6ff}.verdict-pass{background:#0d2818;color:#3fb950}.verdict-fail{background:#3d1214;color:#f85149}.verdict-degraded{background:#3d2e00;color:#d29922}.verdict-insufficient_data,.verdict-na{background:#21262d;color:#8b949e}.footer{color:#484f58;border-top-color:#30363d}.footer a{color:#58a6ff}.chart-link:hover img{box-shadow:0 2px 8px rgba(0,0,0,.4)}.scenario-badge{background:#21262d;color:#8b949e}.view-report a{color:#58a6ff}}
 </style>
 </head>
 <body>
 <div class="header">
 <h1>FIPS Lab Test Reports</h1>
-<div class="updated">Last updated: PLACEHOLDER_LAST_UPDATED</div>
+<div class="updated">Last updated: PLACEHOLDER_LAST_UPDATED <span class="verdict PLACEHOLDER_LATEST_VERDICT_CLASS" style="vertical-align:middle;margin-left:8px">Latest: PLACEHOLDER_LATEST_VERDICT</span></div>
 </div>
 <div class="container">
 <div class="summary">
@@ -894,12 +981,17 @@ DASHHEAD
       first_line="$(grep "|${hash_name}|" "$runs_file" | sort -t'|' -k1 -r | head -1)"
       local group_branch
       group_branch="$(echo "$first_line" | cut -d'|' -f11)"
+      local group_scenario
+      group_scenario="$(echo "$first_line" | cut -d'|' -f4)"
 
       echo '<div class="commit-group">' >> "$dash_file"
       echo '<div class="commit-header">' >> "$dash_file"
       echo "<span class=\"hash\"><a href=\"${commit_url}\">${hash_name}</a></span>" >> "$dash_file"
       if [ -n "$group_branch" ]; then
         echo "<span class=\"branch-badge\">${group_branch}</span>" >> "$dash_file"
+      fi
+      if [ -n "$group_scenario" ] && [ "$group_scenario" != "unknown" ]; then
+        echo "<span class=\"scenario-badge\">${group_scenario}</span>" >> "$dash_file"
       fi
       echo '</div>' >> "$dash_file"
 
@@ -997,7 +1089,8 @@ DASHHEAD
           if [ -f "$chart_rssi" ]; then
             echo "<div class=\"chart-item\"><a class=\"chart-link\" href=\"reports/${hash_name}/${ts_name}/chart-rssi.svg\" target=\"_blank\" rel=\"noopener\"><img src=\"reports/${hash_name}/${ts_name}/chart-rssi.svg\" alt=\"RSSI Chart\" loading=\"lazy\"/><span class=\"chart-hover-label\">View full size</span></a></div>" >> "$dash_file"
           fi
-          echo '</div>' >> "$dash_file"
+           echo '</div>' >> "$dash_file"
+          echo "<div class=\"view-report\"><a href=\"${report_path}\" target=\"_blank\" rel=\"noopener\">View full report →</a></div>" >> "$dash_file"
         fi
       done
 
@@ -1025,6 +1118,8 @@ DASHFOOT
   sed -i.bak "s|PLACEHOLDER_TOTAL_RUNS|${total_runs}|g" "$dash_file"
   sed -i.bak "s|PLACEHOLDER_TOTAL_COMMITS|${total_commits}|g" "$dash_file"
   sed -i.bak "s|PLACEHOLDER_PASS_RATE|${pass_rate}|g" "$dash_file"
+  sed -i.bak "s|PLACEHOLDER_LATEST_VERDICT|${latest_verdict}|g" "$dash_file"
+  sed -i.bak "s|PLACEHOLDER_LATEST_VERDICT_CLASS|${latest_verdict_class}|g" "$dash_file"
   rm -f "${dash_file}.bak"
 
   rm -f "$runs_file"
