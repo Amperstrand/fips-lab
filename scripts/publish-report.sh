@@ -1040,7 +1040,7 @@ DASHHEAD
       for mx_col in "linux" "esp32" "m5pico"; do
         mx_ckey="$(mx_normkey "$mx_row" "$mx_col")"
 
-        mx_line="$(grep "^${mx_ckey}|" "$mx_tmpfile" 2>/dev/null | head -1)"
+        mx_line="$(grep "^${mx_ckey}|" "$mx_tmpfile" 2>/dev/null | head -1 || true)"
         if [ -n "$mx_line" ]; then
           mx_cv="$(echo "$mx_line" | cut -d'|' -f2)"
           mx_cp="$(echo "$mx_line" | cut -d'|' -f3)"
