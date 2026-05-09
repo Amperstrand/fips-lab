@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -13,6 +14,9 @@ log = logging.getLogger(__name__)
 
 _READINESS_TIMEOUT_SECS = 60
 _READINESS_POLL_INTERVAL_SECS = 2
+
+# Pattern to extract commit from fips version string like "0.3.0-dev (rev c52b2b71c5)"
+_VERSION_COMMIT_RE = re.compile(r"rev ([0-9a-f]{7,40})", re.IGNORECASE)
 
 
 class DeployManager:
@@ -28,9 +32,9 @@ class DeployManager:
         self._configs = configs
         self._results_dir = results_dir
 
-    def restart_all(self, keylog: bool = True) -> None:
-        """Stop all FIPS nodes, clear keylogs, restart with FIPS_NOISE_KEYLOG, poll readiness.
-        Raises RuntimeError if any device fails to become ready within timeout."""
+    def restart_all(
+        self, keylog: bool = True, expected_commit: str | None = None
+    ) -> None:
         targets = self._fips_devices()
         if not targets:
             log.warning("No FIPS devices to restart")
@@ -43,6 +47,9 @@ class DeployManager:
 
         self._start_all(targets, keylog)
         self._poll_all(targets)
+
+        if expected_commit:
+            self._verify_binary_versions(targets, expected_commit)
 
     def stop_all(self) -> None:
         """Stop all FIPS nodes. Best-effort — log errors but don't raise."""
@@ -186,3 +193,39 @@ class DeployManager:
         raise RuntimeError(
             f"Device {alias} failed to start within {_READINESS_TIMEOUT_SECS}s"
         )
+
+    def _verify_binary_versions(
+        self,
+        targets: dict[str, tuple[Device, dict[str, Any]]],
+        expected_commit: str,
+    ) -> None:
+        expected_short = expected_commit[:7].lower()
+        mismatches: list[str] = []
+
+        for alias, (device, _cfg) in targets.items():
+            status = device.query("show_status")
+            if not status:
+                log.warning("%s: no status response for version check", alias)
+                continue
+            version_str = status.get("version", "")
+            match = _VERSION_COMMIT_RE.search(version_str)
+            if not match:
+                log.warning("%s: cannot parse version '%s'", alias, version_str)
+                continue
+            running_commit = match.group(1).lower()
+            if running_commit.startswith(expected_short) or expected_short.startswith(running_commit):
+                log.info("%s: binary version OK (rev %s)", alias, running_commit)
+            else:
+                msg = (
+                    f"{alias}: binary commit {running_commit} != "
+                    f"expected {expected_short} (from git HEAD)"
+                )
+                log.error(msg)
+                mismatches.append(msg)
+
+        if mismatches:
+            raise RuntimeError(
+                "Binary version mismatch! One or more devices are running "
+                "stale binaries. Rebuild (cargo build --release) and retry.\n"
+                + "\n".join(mismatches)
+            )

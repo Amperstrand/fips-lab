@@ -375,7 +375,9 @@ class LabRunner:
         assert self.run_dir is not None
         manager = DeployManager(self.devices, self.resolved_configs, self.run_dir)
         keylog = deploy_cfg.get("keylog", True)
-        manager.restart_all(keylog=keylog)
+        fips_meta = _fips_git_metadata(self.resolved_configs)
+        expected_commit = fips_meta.get("commit")
+        manager.restart_all(keylog=keylog, expected_commit=expected_commit)
         warmup = int(deploy_cfg.get("warmup_secs", 30))
         if warmup > 0:
             log.info("Warmup: waiting %ds for BLE discovery", warmup)
