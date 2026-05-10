@@ -61,6 +61,33 @@ class SerialLogCapture:
         proc.terminate()
         proc.wait(timeout=5)
 
+    def _stream_local(self) -> None:
+        try:
+            import serial
+        except ImportError:
+            log.error("pyserial not installed — cannot capture local serial for %s", self.device_alias)
+            return
+        try:
+            ser = serial.Serial(self.serial_port, self.baud_rate, timeout=1)
+        except serial.SerialException as exc:
+            log.error("Cannot open %s: %s", self.serial_port, exc)
+            return
+        with self._local_path.open("w") as fh:
+            while not self._stop_flag.is_set():
+                try:
+                    raw = ser.readline()
+                except serial.SerialException:
+                    break
+                if not raw:
+                    continue
+                line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+                ts = time.strftime("%H:%M:%S")
+                tagged = f"[{ts}] {line}\n"
+                fh.write(tagged)
+                fh.flush()
+                self._lines.append(tagged)
+        ser.close()
+
     def start(self) -> None:
         if not self.enabled or not self.serial_port:
             log.info("serial capture disabled for %s", self.device_alias)
@@ -71,8 +98,13 @@ class SerialLogCapture:
             self._thread = threading.Thread(target=self._stream_via_ssh, daemon=True)
             self._thread.start()
             log.info("serial capture started for %s via SSH (%s)", self.device_alias, self.serial_port)
+        elif self.transport == "serial":
+            self._stop_flag.clear()
+            self._thread = threading.Thread(target=self._stream_local, daemon=True)
+            self._thread.start()
+            log.info("serial capture started for %s on %s @ %d", self.device_alias, self.serial_port, self.baud_rate)
         else:
-            log.info("serial capture for local devices not yet implemented (%s)", self.device_alias)
+            log.info("serial capture: unsupported transport %s for %s", self.transport, self.device_alias)
 
     def stop(self) -> dict[str, Any]:
         info: dict[str, Any] = {
