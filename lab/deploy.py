@@ -20,7 +20,7 @@ _VERSION_COMMIT_RE = re.compile(r"rev ([0-9a-f]{7,40})", re.IGNORECASE)
 
 
 class DeployManager:
-    """Manages FIPS deploy/restart lifecycle for test devices."""
+    """Manages FIPS deploy/restart and microfips flashing lifecycle."""
 
     def __init__(
         self,
@@ -50,6 +50,15 @@ class DeployManager:
 
         if expected_commit:
             self._verify_binary_versions(targets, expected_commit)
+
+    def flash_all_microfips(self) -> None:
+        """Flash firmware to all microfips devices defined in scenario topology."""
+        targets = self._microfips_devices()
+        if not targets:
+            log.info("No microfips devices to flash")
+            return
+        for alias, (device, cfg) in targets.items():
+            self._flash_one(alias, device, cfg)
 
     def stop_all(self) -> None:
         """Stop all FIPS nodes. Best-effort — log errors but don't raise."""
@@ -229,3 +238,106 @@ class DeployManager:
                 "stale binaries. Rebuild (cargo build --release) and retry.\n"
                 + "\n".join(mismatches)
             )
+
+    def _microfips_devices(self) -> dict[str, tuple[Device, dict[str, Any]]]:
+        out: dict[str, tuple[Device, dict[str, Any]]] = {}
+        for alias, device in self._devices.items():
+            cfg = self._configs.get(alias, {})
+            if cfg.get("type") == "microfips" and cfg.get("firmware", {}).get("flash"):
+                out[alias] = (device, cfg)
+        return out
+
+    def _flash_one(self, alias: str, device: Device, cfg: dict[str, Any]) -> None:
+        firmware_cfg = cfg.get("firmware", {})
+        flash_cfg = firmware_cfg.get("flash", {})
+        artifact = firmware_cfg.get("artifact", "")
+        tool = flash_cfg.get("tool", "esptool.py")
+        chip = flash_cfg.get("chip", "esp32")
+        baud = flash_cfg.get("baud", 921600)
+        address = flash_cfg.get("address", "0x0")
+        transport = cfg.get("transport", "serial")
+        serial_port = cfg.get("serial_port", "")
+
+        if not artifact:
+            raise RuntimeError(f"microfips {alias}: no firmware.artifact configured")
+
+        if transport == "serial":
+            self._flash_local(alias, artifact, tool, chip, baud, address, serial_port)
+        elif transport == "serial-via-ssh":
+            host = cfg.get("host") or cfg.get("ssh_host", "")
+            user = cfg.get("user") or cfg.get("ssh_user", "")
+            self._flash_via_ssh(alias, artifact, tool, chip, baud, address, serial_port, host, user)
+        else:
+            log.warning("Skipping flash for %s: unsupported transport %s", alias, transport)
+
+    def _flash_local(
+        self,
+        alias: str,
+        artifact: str,
+        tool: str,
+        chip: str,
+        baud: int,
+        address: str,
+        serial_port: str,
+    ) -> None:
+        argv = [
+            tool, "--chip", chip, "--port", serial_port,
+            "--baud", str(baud), "write_flash", address, artifact,
+        ]
+        log.info("Flashing %s: %s", alias, " ".join(argv))
+        try:
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=120, check=False)
+        except FileNotFoundError:
+            raise RuntimeError(f"microfips {alias}: flash tool '{tool}' not found (install esptool)")
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"microfips {alias}: flash timed out after 120s")
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"microfips {alias}: flash failed (exit {result.returncode}): "
+                f"{result.stderr.strip() or result.stdout.strip()}"
+            )
+        log.info("Flashed %s successfully", alias)
+
+        if self._results_dir:
+            flash_log = self._results_dir / f"flash-{alias}.log"
+            flash_log.write_text(f"$ {' '.join(argv)}\n{result.stdout}\n{result.stderr}\n")
+
+    def _flash_via_ssh(
+        self,
+        alias: str,
+        artifact: str,
+        tool: str,
+        chip: str,
+        baud: int,
+        address: str,
+        serial_port: str,
+        host: str,
+        user: str,
+    ) -> None:
+        target = f"{user}@{host}" if user else host
+        remote_artifact = f"/tmp/fips-lab-flash-{alias}.bin"
+
+        log.info("Copying firmware to %s:%s", target, remote_artifact)
+        scp_result = subprocess.run(
+            ["scp", artifact, f"{target}:{remote_artifact}"],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+        if scp_result.returncode != 0:
+            raise RuntimeError(f"microfips {alias}: scp failed: {scp_result.stderr.strip()}")
+
+        remote_cmd = (
+            f"{tool} --chip {chip} --port {serial_port} "
+            f"--baud {baud} write_flash {address} {remote_artifact} "
+            f"&& rm -f {remote_artifact}"
+        )
+        log.info("Flashing %s via SSH: %s", alias, remote_cmd)
+        ssh_result = subprocess.run(
+            ["ssh", target, remote_cmd],
+            capture_output=True, text=True, timeout=120, check=False,
+        )
+        if ssh_result.returncode != 0:
+            raise RuntimeError(
+                f"microfips {alias}: remote flash failed: {ssh_result.stderr.strip()}"
+            )
+        log.info("Flashed %s successfully via SSH", alias)
