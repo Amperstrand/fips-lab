@@ -366,23 +366,33 @@ class LabRunner:
         (self.run_dir / "analysis.txt").write_text("\n".join(lines) + "\n")
 
     def _deploy(self) -> None:
-        deploy_cfg = self.scenario.raw.get("deploy") or {}
-        if not deploy_cfg.get("restart_before_test"):
-            return
-        if self.dry_run:
-            log.info("Dry run: would restart FIPS nodes")
-            return
         assert self.run_dir is not None
         manager = DeployManager(self.devices, self.resolved_configs, self.run_dir)
-        keylog = deploy_cfg.get("keylog", True)
-        fips_meta = _fips_git_metadata(self.resolved_configs)
-        expected_commit = fips_meta.get("commit")
-        manager.restart_all(keylog=keylog, expected_commit=expected_commit)
-        warmup = int(deploy_cfg.get("warmup_secs", 30))
-        if warmup > 0:
-            log.info("Warmup: waiting %ds for BLE discovery", warmup)
-            time.sleep(warmup)
-        self._start_rssi_if_ready()
+
+        deploy_cfg = self.scenario.raw.get("deploy") or {}
+        microfips_deploy = deploy_cfg.get("microfips") or {}
+
+        if microfips_deploy.get("flash"):
+            if self.dry_run:
+                log.info("Dry run: would flash microfips devices")
+            else:
+                manager.flash_all_microfips()
+                log.info("Waiting 5s for microfips boot after flash")
+                time.sleep(5)
+
+        if deploy_cfg.get("restart_before_test"):
+            if self.dry_run:
+                log.info("Dry run: would restart FIPS nodes")
+            else:
+                keylog = deploy_cfg.get("keylog", True)
+                fips_meta = _fips_git_metadata(self.resolved_configs)
+                expected_commit = fips_meta.get("commit")
+                manager.restart_all(keylog=keylog, expected_commit=expected_commit)
+                warmup = int(deploy_cfg.get("warmup_secs", 30))
+                if warmup > 0:
+                    log.info("Warmup: waiting %ds for BLE discovery", warmup)
+                    time.sleep(warmup)
+            self._start_rssi_if_ready()
 
     def _generate_charts(self) -> None:
         if self.run_dir is None:
