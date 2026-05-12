@@ -380,6 +380,16 @@ class LabRunner:
                 log.info("Waiting 5s for microfips boot after flash")
                 time.sleep(5)
 
+        has_stm32 = any(
+            cfg.get("type") == "stm32-hil" for cfg in self.resolved_configs.values()
+        )
+        if has_stm32:
+            if self.dry_run:
+                log.info("Dry run: would run STM32 HIL tests")
+            else:
+                hil_results = manager.run_stm32_hil()
+                write_json(self.run_dir / "stm32-hil-results.json", hil_results)
+
         if deploy_cfg.get("restart_before_test"):
             if self.dry_run:
                 log.info("Dry run: would restart FIPS nodes")
