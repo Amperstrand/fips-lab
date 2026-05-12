@@ -138,7 +138,6 @@ def _parse_scenario_links(yaml_path: Path) -> list[dict[str, str]]:
         elif stripped.startswith("transport:") and current:
             current["transport"] = stripped.split(":", 1)[1].strip()
         elif stripped and not stripped.startswith(("#", "to:", "transport:")):
-            # New section reached – flush and stop.
             if current:
                 links.append(current)
                 current = {}
@@ -147,6 +146,17 @@ def _parse_scenario_links(yaml_path: Path) -> list[dict[str, str]]:
     if current:
         links.append(current)
     return links
+
+
+def _load_scenario_raw(yaml_path: Path) -> dict[str, Any]:
+    """Load full scenario YAML as a dict."""
+    if not yaml_path.exists():
+        return {}
+    try:
+        import yaml
+        return yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -582,6 +592,38 @@ def _evaluate_assertions(
     expected_links: list[dict[str, str]],
     has_errors: bool,
     disconnects: list[DisconnectEvent] | None = None,
+    scenario_assertions: list[dict[str, Any]] | None = None,
+    serial_captures: dict | None = None,
+    timeseries: list[dict] | None = None,
+) -> list[AssertionResult]:
+    """Evaluate assertions from scenario YAML, falling back to defaults."""
+    results: list[AssertionResult] = []
+
+    if scenario_assertions:
+        results.extend(
+            _evaluate_scenario_assertions(
+                scenario_assertions, connections, peer_metrics,
+                serial_captures=serial_captures, timeseries=timeseries,
+            )
+        )
+    else:
+        results.extend(
+            _evaluate_default_assertions(
+                connections, peer_metrics, key_exchange,
+                expected_links, has_errors, disconnects,
+            )
+        )
+
+    return results
+
+
+def _evaluate_default_assertions(
+    connections: list[dict],
+    peer_metrics: list[PeerMetrics],
+    key_exchange: list[KeyExchangeInfo],
+    expected_links: list[dict[str, str]],
+    has_errors: bool,
+    disconnects: list[DisconnectEvent] | None = None,
 ) -> list[AssertionResult]:
     """Evaluate the hardcoded default assertion set."""
     results: list[AssertionResult] = []
@@ -617,7 +659,6 @@ def _evaluate_assertions(
 
     # --- 2. MMP loss < 5 % ---
     max_loss_ratio = max((pm.loss_max for pm in peer_metrics), default=0.0)
-    # loss_rate is a ratio 0.0–1.0 in the FIPS data
     max_loss_pct = max_loss_ratio * 100.0
     results.append(
         AssertionResult(
@@ -662,6 +703,95 @@ def _evaluate_assertions(
             passed=len(disc) == 0,
         )
     )
+
+    return results
+
+
+def _evaluate_scenario_assertions(
+    scenario_assertions: list[dict[str, Any]],
+    connections: list[dict],
+    peer_metrics: list[PeerMetrics],
+    serial_captures: dict | None = None,
+    timeseries: list[dict] | None = None,
+) -> list[AssertionResult]:
+    """Evaluate scenario-defined assertions."""
+    results: list[AssertionResult] = []
+    connected_pairs = {c["pair"] for c in connections if c["connected"]}
+
+    for assertion in scenario_assertions:
+        atype = assertion.get("type", "")
+
+        if atype == "peer_connected":
+            from_dev = assertion.get("from", "")
+            to_dev = assertion.get("to", "")
+            pair = _pair_label(from_dev, to_dev)
+            within_secs = assertion.get("within_secs", 120)
+
+            connected = pair in connected_pairs
+            if connected:
+                connected_within = True
+                if timeseries:
+                    for sample in timeseries:
+                        for alias, cmds in sample.get("devices", {}).items():
+                            if not isinstance(cmds, dict):
+                                continue
+                            peers_data = cmds.get("show_peers", {})
+                            if isinstance(peers_data, dict) and peers_data.get("peers"):
+                                for p in peers_data["peers"]:
+                                    if p.get("connected"):
+                                        connected_within = True
+                                        break
+            else:
+                connected_within = False
+
+            results.append(AssertionResult(
+                name=f"peer_connected({from_dev} ↔ {to_dev})",
+                expected=f"connected within {within_secs}s",
+                actual="connected" if connected_within else "not connected",
+                passed=connected_within,
+            ))
+
+        elif atype == "no_serial_crash":
+            device = assertion.get("device", "")
+            crashed = False
+            crash_signals = ["panic", "hardfault", "abort", "stack overflow", "guru meditation"]
+
+            if serial_captures and isinstance(serial_captures, dict):
+                for cap_key, cap_info in serial_captures.items():
+                    if not isinstance(cap_info, dict):
+                        continue
+                    if cap_info.get("device") != device:
+                        continue
+                    cap_file = cap_info.get("file")
+                    if cap_file and Path(cap_file).exists():
+                        content = Path(cap_file).read_text(encoding="utf-8", errors="replace").lower()
+                        for signal in crash_signals:
+                            if signal in content:
+                                crashed = True
+                                break
+
+            results.append(AssertionResult(
+                name=f"no_serial_crash({device})",
+                expected="no crash signals in serial output",
+                actual="crash detected" if crashed else "no crash signals",
+                passed=not crashed,
+            ))
+
+        elif atype == "mmp_loss":
+            device = assertion.get("device", "")
+            max_loss_pct = assertion.get("max_loss_pct", 10.0)
+
+            actual_max = 0.0
+            for pm in peer_metrics:
+                if device in pm.pair:
+                    actual_max = max(actual_max, pm.loss_max * 100.0)
+
+            results.append(AssertionResult(
+                name=f"mmp_loss({device})",
+                expected=f"< {max_loss_pct}%",
+                actual=f"{actual_max:.1f}%",
+                passed=actual_max < max_loss_pct,
+            ))
 
     return results
 
@@ -787,6 +917,9 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     # -- scenario links (for connectivity assertions) ----------------------
     expected_links = _parse_scenario_links(run_dir / "scenario.yaml")
 
+    # -- scenario-driven assertions ------------------------------------------
+    scenario_raw = _load_scenario_raw(run_dir / "scenario.yaml")
+
     # -- error detection ----------------------------------------------------
     has_errors = _has_timeseries_errors(timeseries)
 
@@ -794,6 +927,9 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     assertions = _evaluate_assertions(
         connections, peer_metrics, key_exchange, expected_links, has_errors,
         disconnects=disconnects,
+        scenario_assertions=scenario_raw.get("assertions"),
+        serial_captures=captures_raw,
+        timeseries=timeseries,
     )
 
     # -- verdict ------------------------------------------------------------
