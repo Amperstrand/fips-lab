@@ -341,3 +341,69 @@ class DeployManager:
                 f"microfips {alias}: remote flash failed: {ssh_result.stderr.strip()}"
             )
         log.info("Flashed %s successfully via SSH", alias)
+
+    def run_stm32_hil(self) -> dict[str, Any]:
+        """Run HIL tests on all stm32-hil devices. Returns per-device results."""
+        targets = {
+            alias: (device, cfg)
+            for alias, device in self._devices.items()
+            if self._configs.get(alias, {}).get("type") == "stm32-hil"
+        }
+        if not targets:
+            return {}
+
+        results: dict[str, Any] = {}
+        for alias, (device, cfg) in targets.items():
+            hil_script = cfg.get("hil_script", "run_hil.sh")
+            hil_args = cfg.get("hil_args", "--json")
+            repo_path = cfg.get("repo_path", "")
+            cwd = repo_path if repo_path and Path(repo_path).is_dir() else None
+
+            argv = ["bash", hil_script] + hil_args.split()
+            log.info("Running STM32 HIL on %s: %s", alias, " ".join(argv))
+
+            if self._results_dir:
+                log_path = self._results_dir / f"stm32-hil-{alias}.log"
+            else:
+                log_path = None
+
+            try:
+                proc = subprocess.run(
+                    argv,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    check=False,
+                    cwd=cwd,
+                )
+            except FileNotFoundError:
+                raise RuntimeError(f"stm32-hil {alias}: script '{hil_script}' not found")
+            except subprocess.TimeoutExpired:
+                raise RuntimeError(f"stm32-hil {alias}: HIL runner timed out after 600s")
+
+            result: dict[str, Any] = {
+                "exit_code": proc.returncode,
+                "passed": proc.returncode == 0,
+            }
+
+            if proc.stdout:
+                result["stdout"] = proc.stdout
+                try:
+                    import json as _json
+                    result["json"] = _json.loads(proc.stdout)
+                except (ValueError, _json.JSONDecodeError):
+                    pass
+
+            if proc.stderr:
+                result["stderr"] = proc.stderr
+
+            if log_path:
+                log_path.write_text(
+                    f"$ {' '.join(argv)}\n--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}\n"
+                )
+
+            results[alias] = result
+            status = "PASSED" if result["passed"] else "FAILED"
+            log.info("STM32 HIL %s: %s (exit %d)", alias, status, proc.returncode)
+
+        return results

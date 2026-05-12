@@ -104,3 +104,12 @@ devices:
     identity:
       source: insecure-mac-hash
       npub: null
+
+  stm32f469-disco:
+    type: stm32-hil
+    platform: stm32f469
+    transport: local
+    role_tags: [stm32, display, sdram, hil]
+    chip: STM32F469NIHx
+    hil_script: run_hil.sh
+    hil_args: "--skip usb --json"

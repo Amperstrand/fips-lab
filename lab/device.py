@@ -110,9 +110,19 @@ class SerialDevice(Device):
         return CommandResult(1, "", f"serial device {self.device_id} cannot run shell commands: {argv}")
 
 
+class Stm32HilDevice(LocalDevice):
+    """STM32 board tested via probe-rs / run_hil.sh, runs commands locally."""
+
+    pass
+
+
 def make_device(alias: str, entry: dict[str, Any], dry_run: bool = False) -> Device:
     device_id = str(entry.get("inventory_ref") or alias)
     transport = str(entry.get("transport", "local"))
+    device_type = str(entry.get("type", ""))
+
+    if device_type == "stm32-hil":
+        return Stm32HilDevice(alias, device_id, entry, dry_run=dry_run)
     if transport == "local":
         return LocalDevice(alias, device_id, entry, dry_run=dry_run)
     if transport == "ssh":
