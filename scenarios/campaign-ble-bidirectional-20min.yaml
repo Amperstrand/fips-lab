@@ -1,0 +1,6 @@
+campaign:
+  name: ble-bidirectional-20min
+  description: 20-minute BLE reliability test in both directions (mac→linux then linux→mac)
+  scenarios:
+    - scenarios/lab-2node-ble-20min.yaml
+    - scenarios/lab-2node-ble-linux-init-20min.yaml

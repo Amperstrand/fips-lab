@@ -1,0 +1,51 @@
+scenario:
+  name: lab-2node-ble-20min
+  tier: extended
+  description: Mac ↔ Linux BLE mesh, 20 minutes. Extended reliability test with btmon, keylog capture.
+
+topology:
+  devices:
+    - id: mac
+      inventory_ref: macbook-local
+      role: fips-controller
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+  links:
+    - from: mac
+      to: linux
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [mac, linux]
+
+deploy:
+  restart_before_test: true
+  stop_after_test: false
+  keylog: true
+  warmup_secs: 30
+  readiness_timeout_secs: 60
+
+actions:
+  warmup_secs: 30
+  duration_secs: 1200
+  metrics:
+    interval_secs: 30
+    from: [mac, linux]
+    collect: [show_status, show_peers, show_mmp]
+  capture:
+    btmon:
+      enabled: true
+      device: linux
+    keylog: true
+    rssi: true
+
+assertions:
+  - type: peer_connected
+    from: mac
+    to: linux
+    within_secs: 120

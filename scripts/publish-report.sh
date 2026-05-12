@@ -1070,7 +1070,7 @@ DASHHEAD
     while IFS='|' read -r _ mx_hash mx_ts mx_scenario _ _ mx_verdict _ _ _ _; do
       local mx_pairs_raw=""
       case "$mx_scenario" in
-        lab-2node-ble)       mx_pairs_raw="linux mac" ;;
+        lab-2node-ble|lab-2node-ble-linux-init) mx_pairs_raw="linux mac" ;;
         lab-3node-isolated)  mx_pairs_raw="linux mac esp32 linux" ;;
         lab-3node-m5pico)    mx_pairs_raw="linux mac linux m5pico" ;;
         microfips-smoke)     mx_pairs_raw="esp32 linux" ;;

@@ -1,0 +1,6 @@
+campaign:
+  name: ble-bidirectional
+  description: Run both BLE initiator directions (mac→linux and linux→mac) back-to-back
+  scenarios:
+    - scenarios/lab-2node-ble.yaml
+    - scenarios/lab-2node-ble-linux-init.yaml

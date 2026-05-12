@@ -1,0 +1,51 @@
+scenario:
+  name: lab-2node-ble-linux-init-20min
+  tier: extended
+  description: Linux ↔ Mac BLE mesh with Linux restarting first (initiator role). 20 minutes. Extended reliability test.
+
+topology:
+  devices:
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+    - id: mac
+      inventory_ref: macbook-local
+      role: fips-controller
+  links:
+    - from: linux
+      to: mac
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [linux, mac]
+
+deploy:
+  restart_before_test: true
+  stop_after_test: false
+  keylog: true
+  warmup_secs: 30
+  readiness_timeout_secs: 60
+
+actions:
+  warmup_secs: 30
+  duration_secs: 1200
+  metrics:
+    interval_secs: 30
+    from: [linux, mac]
+    collect: [show_status, show_peers, show_mmp]
+  capture:
+    btmon:
+      enabled: true
+      device: linux
+    keylog: true
+    rssi: true
+
+assertions:
+  - type: peer_connected
+    from: linux
+    to: mac
+    within_secs: 120

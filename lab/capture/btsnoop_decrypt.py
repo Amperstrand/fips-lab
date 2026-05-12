@@ -125,6 +125,8 @@ class DecryptedFrame:
     plaintext_len: int
     key_index: int = -1
     sent: bool = False
+    raw_header: bytes = b""   # 16-byte outer FMP header (AAD) for pcapng reconstruction
+    plaintext: bytes = b""    # decrypted inner header + message body
 
 
 @dataclass
@@ -599,14 +601,93 @@ def _decrypt_established_frame(
                 msg_name=msg_name,
                 plaintext_len=len(plaintext),
                 key_index=key_idx,
+                raw_header=aad,
+                plaintext=plaintext,
             )
 
     return None
 
 
 # ============================================================================
-# Summary Generation
+# pcapng Writer (manual, no external dependencies)
+#
+# Writes decrypted FMP frames as a pcapng file for Wireshark/tshark analysis.
+# Each packet contains: 16-byte outer FMP header (AAD) + decrypted plaintext
+# (inner header + message body). This lets the FMP Lua dissector parse the
+# outer header fields; the "encrypted payload" section will actually be
+# cleartext, enabling protocol-level inspection without dissector changes.
 # ============================================================================
+
+LINKTYPE_USER0 = 147
+
+
+def _pad4(n: int) -> int:
+    return (4 - n % 4) % 4
+
+
+def _write_pcapng_shb(f) -> None:
+    block_type = 0x0A0D0D0A
+    byte_order_magic = 0x1A2B3C4D
+    major, minor = 1, 0
+    section_length = 0xFFFFFFFFFFFFFFFF
+    options = b""
+    body = struct.pack("<IHHQ", byte_order_magic, major, minor, section_length) + options
+    block_total_length = 4 + 4 + len(body) + 4
+    f.write(struct.pack("<I", block_type))
+    f.write(struct.pack("<I", block_total_length))
+    f.write(body)
+    f.write(struct.pack("<I", block_total_length))
+
+
+def _write_pcapng_idb(f) -> None:
+    block_type = 0x00000001
+    link_type = LINKTYPE_USER0
+    reserved = 0
+    snap_len = 65535
+    options = b""
+    body = struct.pack("<HHI", link_type, reserved, snap_len) + options
+    block_total_length = 4 + 4 + len(body) + 4
+    f.write(struct.pack("<I", block_type))
+    f.write(struct.pack("<I", block_total_length))
+    f.write(body)
+    f.write(struct.pack("<I", block_total_length))
+
+
+def _write_pcapng_epb(f, data: bytes, timestamp_us: int) -> None:
+    block_type = 0x00000006
+    interface_id = 0
+    ts_high = (timestamp_us >> 32) & 0xFFFFFFFF
+    ts_low = timestamp_us & 0xFFFFFFFF
+    captured_len = len(data)
+    original_len = len(data)
+    padding = _pad4(captured_len)
+    fixed = struct.pack("<IIIII", interface_id, ts_high, ts_low,
+                        captured_len, original_len)
+    body = fixed + data + b"\x00" * padding
+    block_total_length = 4 + 4 + len(body) + 4
+    f.write(struct.pack("<I", block_type))
+    f.write(struct.pack("<I", block_total_length))
+    f.write(body)
+    f.write(struct.pack("<I", block_total_length))
+
+
+def _write_decrypted_pcapng(
+    decrypted_frames: list[DecryptedFrame],
+    run_dir: Path,
+) -> None:
+    if not decrypted_frames:
+        return
+
+    pcapng_path = run_dir / "decrypted-fmp.pcapng"
+    with open(pcapng_path, "wb") as f:
+        _write_pcapng_shb(f)
+        _write_pcapng_idb(f)
+        for df in decrypted_frames:
+            packet_data = df.raw_header + df.plaintext
+            timestamp_us = df.timestamp_ms * 1000
+            _write_pcapng_epb(f, packet_data, timestamp_us)
+
+    log.info("wrote decrypted-fmp.pcapng with %d frames", len(decrypted_frames))
 
 def _build_summary(
     capture_file: str,
@@ -965,6 +1046,9 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
 
     log.info("btsnoop: %d/%d decrypted (%d failed)",
              len(decrypted), len(decrypted) + failed_count, failed_count)
+
+    if decrypted:
+        _write_decrypted_pcapng(decrypted, run_dir)
 
     # Build and write summary
     summary = _build_summary(

@@ -88,20 +88,50 @@ The most common setup is a Mac and a Linux box within BLE range:
    Tree converged root=<npub> depth=0 peers=1
    ```
 
-### Automated stability test
+### Automated lab tests (fips-lab)
+
+The `fips-lab` repo orchestrates physical-device tests with deploy/restart, metrics collection, capture, and analysis:
 
 ```bash
-# 20-minute default
-./testing/ble/ble-stability-test.sh
+cd ~/src/fips-lab
 
-# Custom duration + iperf3 throughput test
-./testing/ble/ble-stability-test.sh -d 60 --iperf
+# Single direction (Mac initiates)
+make test-lab-2node
 
-# With BLE traffic capture
-./testing/ble/ble-stability-test.sh --capture -v
+# Single direction (Linux initiates)
+make test-lab-2node-linux-init
+
+# Both directions back-to-back with combined report
+make test-campaign-ble
+
+# Dry run (no devices touched)
+make dry-run-2node
 ```
 
-Results are saved to `testing/ble/results/<timestamp>/`.
+fips-lab handles FIPS restart, BLE discovery warmup, metrics collection, btmon capture, keylog extraction, iperf3 throughput, and produces a full analysis report with verdict.
+
+Results are saved to `fips-lab/results/<timestamp>-<scenario>/`.
+
+See the fips-lab README for full documentation on the build-deploy-test pipeline.
+
+### Legacy stability test script
+
+The standalone `ble-stability-test.sh` script is also available for manual testing:
+
+```bash
+cd ~/src/fips-lab
+
+# 20-minute default
+./ble-stability-test.sh
+
+# Custom duration + iperf3 throughput test
+./ble-stability-test.sh -d 60 --iperf
+
+# With BLE traffic capture
+./ble-stability-test.sh --capture -v
+```
+
+This script is a lower-level alternative — it does not produce structured analysis or publish reports.
 
 ## Expected Results
 

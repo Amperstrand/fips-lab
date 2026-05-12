@@ -1,8 +1,9 @@
 PYTHON ?= python3
 INVENTORY ?= inventory/lab.yaml
 RESULTS ?= results
+COMMIT ?= HEAD
 
-.PHONY: setup list dry-run-smoke dry-run-lab dry-run-2node test-microfips-smoke test-lab-3node test-lab-2node publish clean-results
+.PHONY: setup list dry-run-smoke dry-run-lab dry-run-2node dry-run-campaign-ble test-microfips-smoke test-lab-3node test-lab-2node test-lab-2node-linux-init test-campaign-ble test-campaign-ble-20min test-commit test-lab-2node-commit publish clean-results
 
 setup:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -30,6 +31,24 @@ test-lab-2node:
 
 test-lab-2node-publish:
 	$(PYTHON) -m lab scenarios/lab-2node-ble.yaml --inventory $(INVENTORY) --results-dir $(RESULTS) --publish
+
+test-commit:
+	$(PYTHON) -m lab $(SCENARIO) --inventory $(INVENTORY) --results-dir $(RESULTS) --commit $(COMMIT)
+
+test-lab-2node-commit:
+	$(PYTHON) -m lab scenarios/lab-2node-ble.yaml --inventory $(INVENTORY) --results-dir $(RESULTS) --commit $(COMMIT)
+
+test-lab-2node-linux-init:
+	$(PYTHON) -m lab scenarios/lab-2node-ble-linux-init.yaml --inventory $(INVENTORY) --results-dir $(RESULTS)
+
+dry-run-campaign-ble:
+	$(PYTHON) -m lab --campaign scenarios/campaign-ble-bidirectional.yaml --inventory inventory/lab.example.yaml --results-dir $(RESULTS) --dry-run
+
+test-campaign-ble:
+	$(PYTHON) -m lab --campaign scenarios/campaign-ble-bidirectional.yaml --inventory $(INVENTORY) --results-dir $(RESULTS)
+
+test-campaign-ble-20min:
+	$(PYTHON) -m lab --campaign scenarios/campaign-ble-bidirectional-20min.yaml --inventory $(INVENTORY) --results-dir $(RESULTS) --publish
 
 publish:
 	@RUN_DIR=$$(ls -dt $(RESULTS)/*-lab-* 2>/dev/null | head -1); \

@@ -45,7 +45,8 @@ class DeployManager:
         if keylog:
             self._clear_keylogs(targets)
 
-        self._start_all(targets, keylog)
+        self._clear_event_logs(targets)
+        self._start_all(targets, keylog, event_log=True)
         self._poll_all(targets)
 
         if expected_commit:
@@ -105,10 +106,34 @@ class DeployManager:
                     result.stderr.strip(),
                 )
 
+    def _clear_event_logs(self, targets: dict[str, tuple[Device, dict[str, Any]]]) -> None:
+        for alias, (device, cfg) in targets.items():
+            event_log_path = self._event_log_path(alias, cfg)
+            if not event_log_path:
+                continue
+            result = device.run(["rm", "-f", str(event_log_path)])
+            if result.returncode != 0:
+                log.debug("Failed to delete event log %s on %s: %s",
+                          event_log_path, alias, result.stderr.strip())
+
+    @staticmethod
+    def _event_log_path(alias: str, cfg: dict[str, Any]) -> str | None:
+        """Derive the BLE event log path for a device.
+
+        Uses the keylog_path directory with a different filename so event logs
+        land alongside keylogs (e.g. /tmp/fips-ble-events-mac.jsonl).
+        """
+        keylog_path = cfg.get("keylog_path")
+        if not keylog_path:
+            return None
+        p = Path(keylog_path)
+        return str(p.parent / f"fips-ble-events-{alias}.jsonl")
+
     def _start_all(
         self,
         targets: dict[str, tuple[Device, dict[str, Any]]],
         keylog: bool,
+        event_log: bool = False,
     ) -> None:
         for alias, (device, cfg) in targets.items():
             transport = cfg.get("transport", "local")
@@ -116,11 +141,14 @@ class DeployManager:
             config_path = str(cfg["config_path"])
             keylog_path = cfg.get("keylog_path")
             env_keylog = str(keylog_path) if keylog and keylog_path else ""
+            env_event_log = (
+                self._event_log_path(alias, cfg) if event_log and keylog_path else ""
+            )
 
             if transport == "local":
-                self._start_local(alias, cfg, fips_binary, config_path, env_keylog)
+                self._start_local(alias, cfg, fips_binary, config_path, env_keylog, env_event_log)
             elif transport == "ssh":
-                self._start_ssh(alias, cfg, fips_binary, config_path, env_keylog)
+                self._start_ssh(alias, cfg, fips_binary, config_path, env_keylog, env_event_log)
             else:
                 log.warning("Skipping start for %s: unsupported transport %s", alias, transport)
 
@@ -131,16 +159,20 @@ class DeployManager:
         fips_binary: str,
         config_path: str,
         keylog_path: str,
+        event_log_path: str = "",
     ) -> None:
-        # caffeinate -i required for macOS CoreBluetooth (issue #99)
         env = dict(os.environ)
         if keylog_path:
             env["FIPS_NOISE_KEYLOG"] = keylog_path
+        if event_log_path:
+            env["FIPS_BLE_EVENT_LOG"] = event_log_path
         use_sudo = cfg.get("sudo", False)
         if use_sudo:
             cmd = ["sudo"]
             if keylog_path:
                 cmd.append(f"FIPS_NOISE_KEYLOG={keylog_path}")
+            if event_log_path:
+                cmd.append(f"FIPS_BLE_EVENT_LOG={event_log_path}")
             cmd.extend(["caffeinate", "-i", fips_binary, "--config", config_path])
         else:
             cmd = ["caffeinate", "-i", fips_binary, "--config", config_path]
@@ -162,15 +194,17 @@ class DeployManager:
         fips_binary: str,
         config_path: str,
         keylog_path: str,
+        event_log_path: str = "",
     ) -> None:
         host = cfg.get("host") or cfg.get("ssh_host")
         user = cfg.get("user") or cfg.get("ssh_user")
         target = f"{user}@{host}" if user else str(host)
 
         keylog_env = f"FIPS_NOISE_KEYLOG={keylog_path} " if keylog_path else ""
+        event_env = f"FIPS_BLE_EVENT_LOG={event_log_path} " if event_log_path else ""
         sudo = "sudo " if cfg.get("sudo", False) else ""
         remote_cmd = (
-            f"{sudo}{keylog_env}"
+            f"{sudo}{keylog_env}{event_env}"
             f"nohup {fips_binary} --config {config_path} "
             f"> /dev/null 2>&1 &"
         )

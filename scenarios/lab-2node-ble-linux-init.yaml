@@ -1,0 +1,55 @@
+scenario:
+  name: lab-2node-ble-linux-init
+  tier: standard
+  description: Linux ↔ Mac BLE mesh with Linux restarting first (initiator role). 10 minutes, with deploy restart, btmon, keylog capture, and iperf3.
+
+topology:
+  devices:
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+    - id: mac
+      inventory_ref: macbook-local
+      role: fips-controller
+  links:
+    - from: linux
+      to: mac
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [linux, mac]
+
+deploy:
+  restart_before_test: true
+  stop_after_test: false
+  keylog: true
+  warmup_secs: 30
+  readiness_timeout_secs: 60
+
+actions:
+  warmup_secs: 30
+  metrics:
+    interval_secs: 30
+    from: [linux, mac]
+    collect: [show_status, show_peers, show_mmp]
+  capture:
+    btmon:
+      enabled: true
+      device: linux
+    keylog: true
+    rssi: true
+    iperf3: true
+    iperf3_tcp_duration: 10
+    iperf3_udp_duration: 10
+    iperf3_udp_rate: "50K"
+    iperf3_tcp_window: "8K"
+
+assertions:
+  - type: peer_connected
+    from: linux
+    to: mac
+    within_secs: 60

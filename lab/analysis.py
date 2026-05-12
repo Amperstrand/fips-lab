@@ -84,6 +84,7 @@ class AnalysisReport:
     assertions: list[AssertionResult]
     memory: dict
     decryption_summary: dict | None = None
+    tshark_summary: dict | None = None
     rssi_stats: list[dict] | None = None
 
 
@@ -911,6 +912,9 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     # -- decryption summary -------------------------------------------------
     decryption_summary = _load_json(run_dir / "decryption-summary.json")
 
+    # -- tshark summary -----------------------------------------------------
+    tshark_summary = _load_json(run_dir / "tshark-summary.json")
+
     # -- RSSI stats ---------------------------------------------------------
     rssi_stats = _build_rssi_stats(run_dir)
 
@@ -950,6 +954,7 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
         assertions=assertions,
         memory={},  # RSS not available in current artifacts
         decryption_summary=decryption_summary,
+        tshark_summary=tshark_summary,
         rssi_stats=rssi_stats,
     )
 
@@ -975,6 +980,7 @@ def write_analysis(report: AnalysisReport, run_dir: Path) -> None:
         "assertions": [asdict(a) for a in report.assertions],
         "memory": report.memory,
         "decryption_summary": report.decryption_summary,
+        "tshark_summary": report.tshark_summary,
         "rssi_stats": report.rssi_stats,
     }
     json_path = run_dir / "analysis.json"
@@ -1102,6 +1108,39 @@ def format_markdown(report: AnalysisReport) -> str:
                 f"| {rs['device']} | {rs.get('ble_addr', '')} | "
                 f"{rs['samples']} | {rs['min']} | {rs['avg']} | {rs['max']} |"
             )
+        lines.append("")
+
+    # -- tshark summary -----------------------------------------------------
+    if report.tshark_summary:
+        lines.append("## TShark BLE Statistics")
+        ts = report.tshark_summary
+        lines.append(f"- **Capture**: `{ts.get('capture_file', '')}`")
+
+        hci = ts.get("hci_summary", {})
+        if hci:
+            lines.append(f"- **HCI events**: {hci.get('total_hci_events', 0)}")
+            lines.append(f"- **ACL packets**: {hci.get('total_acl_packets', 0)}")
+
+        io = ts.get("io_stats", {})
+        if io:
+            lines.append(f"- **Total frames (IO)**: {io.get('total_frames', 0)}")
+
+        fmp = ts.get("fmp_frames", {})
+        if fmp:
+            lines.append(f"- **FMP frames (PSM 133)**: {fmp.get('fmp_frame_count', 0)}")
+
+        fs = ts.get("frame_sizes", {})
+        if fs.get("avg_frame_size_bytes") is not None:
+            lines.append(f"- **Avg frame size**: {fs['avg_frame_size_bytes']:.1f} bytes")
+        if fs.get("peak_frame_size_bytes") is not None:
+            lines.append(f"- **Peak frame size**: {fs['peak_frame_size_bytes']} bytes")
+
+        if ts.get("errors"):
+            lines.append("")
+            lines.append("### Warnings")
+            for err in ts["errors"]:
+                lines.append(f"- {err}")
+
         lines.append("")
 
     # -- decryption summary -------------------------------------------------

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .analysis import analyze_run, write_analysis as write_analysis_report
+from .build import BuildManager
 from .capture.btmon import BtmonCapture
 from .capture.iperf import IperfSession
 from .capture.keylog import KeylogCapture
@@ -31,6 +32,7 @@ class LabRunner:
         dry_run: bool = False,
         duration_override: int | None = None,
         publish: bool = False,
+        commit: str | None = None,
     ):
         self.scenario = scenario
         self.inventory = inventory
@@ -38,6 +40,7 @@ class LabRunner:
         self.dry_run = dry_run
         self.duration_override = duration_override
         self.publish = publish
+        self.commit = commit
         self.run_dir: Path | None = None
         self.devices: dict[str, Device] = {}
         self.resolved_configs: dict[str, dict[str, Any]] = {}
@@ -64,8 +67,10 @@ class LabRunner:
             self._collect_final_snapshots()
             self._stop_captures()
             self._collect_keylogs()
+            self._collect_event_logs()
             self._run_iperf()
             self._run_btsnoop_decrypt()
+            self._run_tshark_analysis()
             self._run_analysis()
             self._generate_charts()
             self._deploy_cleanup()
@@ -338,6 +343,48 @@ class LabRunner:
         result = capture.collect()
         write_json(self.run_dir / "keylog-results.json", result)
 
+    def _collect_event_logs(self) -> None:
+        assert self.run_dir is not None
+        for alias, cfg in self.resolved_configs.items():
+            if cfg.get("type") != "fips" or not cfg.get("keylog_path"):
+                continue
+            event_log_path = str(
+                Path(cfg["keylog_path"]).parent / f"fips-ble-events-{alias}.jsonl"
+            )
+            transport = cfg.get("transport", "local")
+            content = self._read_event_log(event_log_path, cfg, transport)
+            if content is not None:
+                local_path = self.run_dir / f"ble-events-{alias}.jsonl"
+                local_path.write_text(content)
+                lines = content.strip().splitlines()
+                log.info("event_log %s: %d events → %s", alias, len(lines), local_path)
+
+    @staticmethod
+    def _read_event_log(path: str, cfg: dict[str, Any], transport: str) -> str | None:
+        try:
+            if transport == "ssh":
+                host = cfg.get("host", "")
+                user = cfg.get("user", "")
+                target = f"{user}@{host}" if user else host
+                use_sudo = cfg.get("sudo", False)
+                cat_cmd = f"sudo cat {path}" if use_sudo else f"cat {path}"
+                result = subprocess.run(
+                    ["ssh", target, cat_cmd],
+                    capture_output=True, text=True, timeout=15, check=False,
+                )
+                return result.stdout if result.returncode == 0 else None
+            else:
+                try:
+                    return Path(path).read_text()
+                except PermissionError:
+                    result = subprocess.run(
+                        ["sudo", "cat", path],
+                        capture_output=True, text=True, timeout=10, check=False,
+                    )
+                    return result.stdout if result.returncode == 0 else None
+        except (subprocess.TimeoutExpired, OSError):
+            return None
+
     def _run_analysis(self) -> None:
         if self.run_dir is None:
             return
@@ -357,6 +404,16 @@ class LabRunner:
         except Exception as exc:
             log.warning("btsnoop decryption failed: %s", exc)
 
+    def _run_tshark_analysis(self) -> None:
+        """Post-test: run tshark BLE statistics on btsnoop capture."""
+        if self.run_dir is None:
+            return
+        try:
+            from lab.capture.tshark import run_tshark_analysis
+            run_tshark_analysis(self.run_dir)
+        except Exception as exc:
+            log.warning("tshark analysis failed: %s", exc)
+
     def _write_fallback_analysis(self, error: str) -> None:
         if self.run_dir is None:
             return
@@ -367,6 +424,13 @@ class LabRunner:
 
     def _deploy(self) -> None:
         assert self.run_dir is not None
+
+        expected_commit: str | None = None
+        build_metadata: dict[str, Any] | None = None
+
+        if self.commit:
+            expected_commit, build_metadata = self._build()
+
         manager = DeployManager(self.devices, self.resolved_configs, self.run_dir)
 
         deploy_cfg = self.scenario.raw.get("deploy") or {}
@@ -403,6 +467,58 @@ class LabRunner:
                     log.info("Warmup: waiting %ds for BLE discovery", warmup)
                     time.sleep(warmup)
             self._start_rssi_if_ready()
+
+        if build_metadata:
+            self._write_build_metadata(build_metadata)
+
+    def _build(self) -> tuple[str, dict[str, Any]]:
+        """Run BuildManager to checkout+build on all devices.
+
+        Returns (resolved_commit, build_metadata_dict).
+        Raises RuntimeError on build failure.
+        """
+        assert self.run_dir is not None
+        assert self.commit is not None
+        log.info("Building FIPS commit %s on all devices", self.commit)
+        build_mgr = BuildManager(self.devices, self.resolved_configs, self.run_dir)
+        results = build_mgr.build_all(self.commit)
+
+        failures = {alias: r for alias, r in results.items() if not r.success}
+        if failures:
+            msgs = [f"  {alias}: {r.error}" for alias, r in failures.items()]
+            raise RuntimeError(
+                f"Build failed on {len(failures)} device(s):\n" + "\n".join(msgs)
+            )
+
+        resolved_commits = {r.commit for r in results.values()}
+        if len(resolved_commits) == 1:
+            resolved = resolved_commits.pop()
+        else:
+            log.warning("Devices resolved to different commits: %s", resolved_commits)
+            resolved = next(iter(resolved_commits))
+
+        build_metadata: dict[str, Any] = {
+            "requested_commit": self.commit,
+            "resolved_commits": {alias: r.commit for alias, r in results.items()},
+            "build_results": {
+                alias: {"success": r.success, "duration_secs": round(r.duration_secs, 1)}
+                for alias, r in results.items()
+            },
+        }
+        return resolved, build_metadata
+
+    def _write_build_metadata(self, build_metadata: dict[str, Any]) -> None:
+        assert self.run_dir is not None
+        metadata_path = self.run_dir / "metadata.json"
+        if not metadata_path.exists():
+            return
+        import json
+        try:
+            existing = json.loads(metadata_path.read_text())
+            existing["build"] = build_metadata
+            metadata_path.write_text(json.dumps(existing, indent=2, sort_keys=True) + "\n")
+        except (json.JSONDecodeError, OSError) as exc:
+            log.warning("Failed to update metadata with build info: %s", exc)
 
     def _generate_charts(self) -> None:
         if self.run_dir is None:

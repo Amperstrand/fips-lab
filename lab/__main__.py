@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from .campaign import CampaignRunner
 from .inventory import Inventory
 from .runner import LabRunner
 from .scenario import Scenario
@@ -11,12 +12,15 @@ from .scenario import Scenario
 def main() -> None:
     parser = argparse.ArgumentParser(prog="fips-lab", description="Run physical FIPS/microfips lab scenarios")
     parser.add_argument("scenario", nargs="?", help="Scenario YAML path")
+    parser.add_argument("--campaign", default=None, help="Campaign YAML path (runs multiple scenarios)")
     parser.add_argument("--inventory", default="inventory/lab.example.yaml", help="Inventory YAML path")
     parser.add_argument("--results-dir", default="results", help="Result output directory")
     parser.add_argument("--duration", type=int, default=None, help="Override scenario duration")
     parser.add_argument("--dry-run", action="store_true", help="Create artifacts without touching devices")
     parser.add_argument("--list", action="store_true", help="List bundled scenarios")
     parser.add_argument("--publish", action="store_true", help="Publish results to gh-pages after test")
+    parser.add_argument("--commit", default=None,
+                        help="Git commit/branch/tag to checkout and build before testing (default: use current checkout)")
     args = parser.parse_args()
 
     if args.list:
@@ -25,11 +29,23 @@ def main() -> None:
             print(f"{scenario.name}\ttier={scenario.tier}\tduration={scenario.duration_secs}s\t{path}")
         return
 
+    inventory = Inventory.load(args.inventory)
+
+    if args.campaign:
+        runner = CampaignRunner(
+            campaign_path=args.campaign,
+            inventory=inventory,
+            results_dir=Path(args.results_dir),
+            dry_run=args.dry_run,
+            publish=args.publish,
+            commit=args.commit,
+        )
+        raise SystemExit(runner.run())
+
     if not args.scenario:
-        parser.error("scenario is required unless --list is used")
+        parser.error("scenario is required unless --list or --campaign is used")
 
     scenario = Scenario.load(args.scenario)
-    inventory = Inventory.load(args.inventory)
     runner = LabRunner(
         scenario=scenario,
         inventory=inventory,
@@ -37,6 +53,7 @@ def main() -> None:
         dry_run=args.dry_run,
         duration_override=args.duration,
         publish=args.publish,
+        commit=args.commit,
     )
     raise SystemExit(runner.run())
 

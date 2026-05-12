@@ -5,3 +5,4 @@ __pycache__/
 inventory/lab.yaml
 results/
 artifacts/
+tshark-raw/
