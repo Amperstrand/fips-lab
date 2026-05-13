@@ -69,7 +69,12 @@ class DeployManager:
             if transport == "local":
                 kill_cmd: list[str] = ["pkill", "-9", "fips"]
             else:
-                kill_cmd = ["killall", "-9", "fips"]
+                svc = cfg.get("service")
+                if isinstance(svc, dict) and svc.get("kind") == "systemd":
+                    device.run(["sudo", "systemctl", "stop", svc.get("name", "fips")])
+                    device.run(["sudo", "systemctl", "unset-environment",
+                                "FIPS_NOISE_KEYLOG", "FIPS_BLE_EVENT_LOG"])
+                kill_cmd = ["sudo", "killall", "-9", "fips"]
             result = device.run(kill_cmd)
             if result.returncode != 0:
                 log.debug(
@@ -214,6 +219,53 @@ class DeployManager:
         except (subprocess.TimeoutExpired, OSError) as exc:
             log.warning("BLE adapter reset failed on %s: %s", alias, exc)
 
+        svc = cfg.get("service")
+        if isinstance(svc, dict) and svc.get("kind") == "systemd" and svc.get("start", True):
+            self._start_ssh_systemd(alias, target, svc, keylog_path, event_log_path)
+        else:
+            self._start_ssh_nohup(alias, cfg, target, fips_binary, config_path, keylog_path, event_log_path)
+
+    def _start_ssh_systemd(
+        self,
+        alias: str,
+        target: str,
+        svc: dict[str, Any],
+        keylog_path: str,
+        event_log_path: str,
+    ) -> None:
+        svc_name = svc.get("name", "fips")
+        env_vars: list[str] = []
+        if keylog_path:
+            env_vars.append(f"FIPS_NOISE_KEYLOG={keylog_path}")
+        if event_log_path:
+            env_vars.append(f"FIPS_BLE_EVENT_LOG={event_log_path}")
+
+        remote_cmds: list[str] = []
+        if env_vars:
+            remote_cmds.append(
+                f"sudo systemctl set-environment {' '.join(env_vars)}"
+            )
+        remote_cmds.append(f"sudo systemctl start {svc_name}")
+        remote_cmd = " && ".join(remote_cmds)
+        log.info("Starting FIPS on %s via systemd service %s", alias, svc_name)
+        try:
+            subprocess.run(
+                ["ssh", target, remote_cmd],
+                capture_output=True, text=True, timeout=15, check=False,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            raise RuntimeError(f"Failed to start FIPS on {alias} via systemd: {exc}") from exc
+
+    @staticmethod
+    def _start_ssh_nohup(
+        alias: str,
+        cfg: dict[str, Any],
+        target: str,
+        fips_binary: str,
+        config_path: str,
+        keylog_path: str,
+        event_log_path: str,
+    ) -> None:
         keylog_env = f"FIPS_NOISE_KEYLOG={keylog_path} " if keylog_path else ""
         event_env = f"FIPS_BLE_EVENT_LOG={event_log_path} " if event_log_path else ""
         sudo = "sudo " if cfg.get("sudo", False) else ""
@@ -222,10 +274,12 @@ class DeployManager:
             f"nohup {fips_binary} --config {config_path} "
             f"> /dev/null 2>&1 &"
         )
-        ssh_argv = ["ssh", target, remote_cmd]
         log.info("Starting FIPS on %s: ssh %s '...'", alias, target)
         try:
-            subprocess.run(ssh_argv, capture_output=True, text=True, timeout=15, check=False)
+            subprocess.run(
+                ["ssh", target, remote_cmd],
+                capture_output=True, text=True, timeout=15, check=False,
+            )
         except (subprocess.TimeoutExpired, OSError) as exc:
             raise RuntimeError(f"Failed to start FIPS on {alias}: {exc}") from exc
 
