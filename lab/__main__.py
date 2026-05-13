@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import yaml
+
 from .campaign import CampaignRunner
 from .inventory import Inventory
 from .runner import LabRunner
@@ -25,6 +27,12 @@ def main() -> None:
 
     if args.list:
         for path in sorted(Path("scenarios").glob("*.yaml")):
+            with path.open() as fh:
+                raw = yaml.safe_load(fh) or {}
+            if "campaign" in raw:
+                c = raw["campaign"]
+                print(f"{c.get('name', path.stem)}\tcampaign\t{path}")
+                continue
             scenario = Scenario.load(path)
             print(f"{scenario.name}\ttier={scenario.tier}\tduration={scenario.duration_secs}s\t{path}")
         return
