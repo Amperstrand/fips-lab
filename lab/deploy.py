@@ -200,6 +200,20 @@ class DeployManager:
         user = cfg.get("user") or cfg.get("ssh_user")
         target = f"{user}@{host}" if user else str(host)
 
+        # Reset BLE adapter to clear stale discovery sessions.
+        # BlueZ keeps discovery active across process restarts, which prevents
+        # FIPS from setting its own discovery filter and scanning for peers.
+        ble_adapter = cfg.get("ble_adapter", "hci0")
+        reset_cmd = f"sudo hciconfig {ble_adapter} down && sleep 1 && sudo hciconfig {ble_adapter} up"
+        log.info("Resetting BLE adapter %s on %s", ble_adapter, alias)
+        try:
+            subprocess.run(
+                ["ssh", target, reset_cmd],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            log.warning("BLE adapter reset failed on %s: %s", alias, exc)
+
         keylog_env = f"FIPS_NOISE_KEYLOG={keylog_path} " if keylog_path else ""
         event_env = f"FIPS_BLE_EVENT_LOG={event_log_path} " if event_log_path else ""
         sudo = "sudo " if cfg.get("sudo", False) else ""

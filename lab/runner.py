@@ -209,8 +209,8 @@ class LabRunner:
                 self.captures.append(SerialLogCapture(
                     device_alias=alias,
                     transport=transport,
-                    host=device_cfg.get("host", "") if transport == "serial-via-ssh" else "",
-                    user=device_cfg.get("user", "") if transport == "serial-via-ssh" else "",
+                    host=(device_cfg.get("host") or device_cfg.get("ssh_host", "")) if transport == "serial-via-ssh" else "",
+                    user=(device_cfg.get("user") or device_cfg.get("ssh_user", "")) if transport == "serial-via-ssh" else "",
                     serial_port=device_cfg.get("serial_port", ""),
                     baud_rate=device_cfg.get("baud_rate", 115200),
                     results_dir=self.run_dir,

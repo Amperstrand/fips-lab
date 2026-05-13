@@ -1,0 +1,61 @@
+scenario:
+  name: lab-linux-esp32-l2cap
+  duration_secs: 300
+  description: "Linux FIPS ↔ ESP32 microfips L2CAP direct mesh, 5-minute stability test."
+
+topology:
+  devices:
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+    - id: esp32
+      inventory_ref: esp32-d0wd-01
+      role: microfips-peripheral
+  links:
+    - from: linux
+      to: esp32
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [linux, esp32]
+
+deploy:
+  restart_before_test: true
+  stop_after_test: false
+  keylog: true
+  warmup_secs: 30
+  readiness_timeout_secs: 60
+
+actions:
+  warmup_secs: 15
+  metrics:
+    interval_secs: 15
+    from: [linux]
+    collect: [show_status, show_peers, show_mmp]
+  capture:
+    serial: true
+    btmon:
+      enabled: true
+      device: linux
+    keylog: true
+    rssi: true
+
+assertions:
+  - type: peer_connected
+    from: linux
+    to: esp32
+    within_secs: 60
+  - type: no_serial_crash
+    device: esp32
+  - type: max_disconnects
+    max: 3
+  - type: reconnect_within
+    from: linux
+    to: esp32
+    within_secs: 30
+  - type: max_rekey_rate
+    max_per_hour: 60

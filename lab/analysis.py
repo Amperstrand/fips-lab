@@ -177,6 +177,7 @@ def _pair_label(a: str, b: str) -> str:
 def _build_hex_to_alias(
     timeseries: list[dict] | None,
     snapshot: dict | None,
+    metadata: dict | None = None,
 ) -> dict[str, str]:
     """Map hex ``node_addr`` → device alias from the first available source."""
     mapping: dict[str, str] = {}
@@ -197,7 +198,51 @@ def _build_hex_to_alias(
             addr = status.get("node_addr", "")
             if addr:
                 mapping[addr] = alias
+
+    # Microfips devices don't run fipsctl, so they have no show_status entry.
+    # Derive their node_addr from the npub in metadata (SHA256(x_only)[:16]).
+    if metadata:
+        import hashlib
+        for alias, dev in metadata.get("devices", {}).items():
+            if alias in mapping.values():
+                continue
+            npub_str = (dev.get("identity") or {}).get("npub", "")
+            if not npub_str or not npub_str.startswith("npub1"):
+                continue
+            try:
+                x_only = _npub_to_x_only(npub_str)
+                addr = hashlib.sha256(x_only).hexdigest()[:32]
+                mapping[addr] = alias
+            except Exception:
+                pass
+
     return mapping
+
+
+def _npub_to_x_only(npub_str: str) -> bytes:
+    """Decode a bech32 ``npub1`` string to a 32-byte x-only public key."""
+    import base64
+    charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+    if not npub_str.startswith("npub1"):
+        raise ValueError("not an npub")
+    decoded = npub_str[5:]
+    acc = 0
+    for ch in decoded:
+        acc = (acc << 5) | charset.index(ch)
+    # 8-bit conversion from 5-bit groups: bech32 decode
+    bits = []
+    for ch in decoded:
+        val = charset.index(ch)
+        for i in range(4, -1, -1):
+            bits.append((val >> i) & 1)
+    # Convert to 8-bit bytes (skip last 6 bits for checksum)
+    result = []
+    for i in range(0, len(bits) - 6, 8):
+        byte = 0
+        for j in range(8):
+            byte = (byte << 1) | bits[i + j]
+        result.append(byte)
+    return bytes(result[:32])
 
 
 # ---------------------------------------------------------------------------
@@ -596,6 +641,7 @@ def _evaluate_assertions(
     scenario_assertions: list[dict[str, Any]] | None = None,
     serial_captures: dict | None = None,
     timeseries: list[dict] | None = None,
+    rekey_stats: list[RekeyStats] | None = None,
 ) -> list[AssertionResult]:
     """Evaluate assertions from scenario YAML, falling back to defaults."""
     results: list[AssertionResult] = []
@@ -605,6 +651,7 @@ def _evaluate_assertions(
             _evaluate_scenario_assertions(
                 scenario_assertions, connections, peer_metrics,
                 serial_captures=serial_captures, timeseries=timeseries,
+                disconnects=disconnects, rekey_stats=rekey_stats,
             )
         )
     else:
@@ -714,6 +761,8 @@ def _evaluate_scenario_assertions(
     peer_metrics: list[PeerMetrics],
     serial_captures: dict | None = None,
     timeseries: list[dict] | None = None,
+    disconnects: list[DisconnectEvent] | None = None,
+    rekey_stats: list[RekeyStats] | None = None,
 ) -> list[AssertionResult]:
     """Evaluate scenario-defined assertions."""
     results: list[AssertionResult] = []
@@ -792,6 +841,48 @@ def _evaluate_scenario_assertions(
                 expected=f"< {max_loss_pct}%",
                 actual=f"{actual_max:.1f}%",
                 passed=actual_max < max_loss_pct,
+            ))
+
+        elif atype == "max_disconnects":
+            max_allowed = assertion.get("max", 0)
+            disc = disconnects or []
+            actual_count = len(disc)
+            results.append(AssertionResult(
+                name="max_disconnects",
+                expected=f"<= {max_allowed} disconnect(s)",
+                actual=f"{actual_count} disconnect(s)",
+                passed=actual_count <= max_allowed,
+            ))
+
+        elif atype == "reconnect_within":
+            from_dev = assertion.get("from", "")
+            to_dev = assertion.get("to", "")
+            within_secs = assertion.get("within_secs", 30)
+            pair = _pair_label(from_dev, to_dev)
+            disc = [d for d in (disconnects or []) if d.pair == pair]
+            failed = [d for d in disc if not d.reconnected]
+            results.append(AssertionResult(
+                name=f"reconnect_within({from_dev} ↔ {to_dev})",
+                expected=f"all reconnect within {within_secs}s",
+                actual=f"{len(disc)} disconnect(s), {len(failed)} not reconnected",
+                passed=len(failed) == 0 if disc else True,
+            ))
+
+        elif atype == "max_rekey_rate":
+            max_per_hour = assertion.get("max_per_hour", 60)
+            target_pair = assertion.get("pair", "")
+            stats = rekey_stats or []
+            if target_pair:
+                stats = [rs for rs in stats if rs.pair == target_pair]
+            actual_max = max(
+                (rs.rekeys_per_hour for rs in stats if rs.rekeys_per_hour is not None),
+                default=0.0,
+            )
+            results.append(AssertionResult(
+                name="max_rekey_rate",
+                expected=f"<= {max_per_hour}/hr",
+                actual=f"{actual_max:.0f}/hr",
+                passed=actual_max <= max_per_hour,
             ))
 
     return results
@@ -885,7 +976,7 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
     duration_secs = metadata.get("duration_secs", 0)
 
     # -- hex → alias map ----------------------------------------------------
-    hex_to_alias = _build_hex_to_alias(timeseries or None, snapshot)
+    hex_to_alias = _build_hex_to_alias(timeseries or None, snapshot, metadata)
 
     # -- peer metrics -------------------------------------------------------
     pair_data = _collect_peer_timeseries(timeseries, hex_to_alias) if timeseries else {}
@@ -934,6 +1025,7 @@ def analyze_run(run_dir: Path) -> AnalysisReport:
         scenario_assertions=scenario_raw.get("assertions"),
         serial_captures=captures_raw,
         timeseries=timeseries,
+        rekey_stats=rekey_stats,
     )
 
     # -- verdict ------------------------------------------------------------
@@ -1069,6 +1161,20 @@ def format_markdown(report: AnalysisReport) -> str:
     else:
         lines.append("| *(none)* | | |")
     lines.append("")
+
+    # -- connection stability ------------------------------------------------
+    if report.disconnects or report.rekey_stats:
+        lines.append("## Connection Stability")
+        total_dc = len(report.disconnects)
+        reconnected = sum(1 for d in report.disconnects if d.reconnected)
+        lines.append(f"- **Total disconnects**: {total_dc}")
+        if total_dc > 0:
+            lines.append(f"- **Reconnected**: {reconnected}/{total_dc}")
+        for rs in report.rekey_stats:
+            if rs.rekeys_per_hour is not None:
+                assessment = "normal" if rs.rekeys_per_hour < 10 else "elevated" if rs.rekeys_per_hour < 60 else "HIGH"
+                lines.append(f"- **Rekey rate ({rs.pair})**: {rs.rekeys_per_hour:.0f}/hr ({assessment})")
+        lines.append("")
 
     # -- keylog verification ------------------------------------------------
     if report.keylog_verification:
