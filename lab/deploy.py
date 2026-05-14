@@ -370,8 +370,11 @@ class DeployManager:
 
             target = f"{user}@{host}" if user else host
             reset_cmd = (
-                f"bash -l -c 'source /home/ubuntu/export-esp.sh && "
-                f"espflash reset -p {serial_port} --chip esp32'"
+                f"python3 -c \"import serial, time; "
+                f"s = serial.Serial('{serial_port}', 115200); "
+                f"s.dtr = False; s.rts = True; "
+                f"time.sleep(0.1); s.rts = False; "
+                f"time.sleep(0.5); s.close()\""
             )
 
             log.info("Resetting ESP32 %s via SSH", alias)
@@ -380,7 +383,7 @@ class DeployManager:
                     ["ssh", target, reset_cmd],
                     capture_output=True,
                     text=True,
-                    timeout=30,
+                    timeout=10,
                     check=False,
                 )
                 if result.returncode == 0:
