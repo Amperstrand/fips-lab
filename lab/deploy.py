@@ -41,6 +41,7 @@ class DeployManager:
             return
 
         self.stop_all()
+        self._reset_esp32_devices()
 
         if keylog:
             self._clear_keylogs(targets)
@@ -340,6 +341,59 @@ class DeployManager:
                 "stale binaries. Rebuild (cargo build --release) and retry.\n"
                 + "\n".join(mismatches)
             )
+
+    def _reset_esp32_devices(self) -> None:
+        """Reset all ESP32/microfips devices to clear their RAM state.
+        
+        ESP32 stores backoff state in RAM (StaticCell), which persists across
+        fips-lab restarts. Resetting clears this state to avoid INSUFFICIENT_DATA
+        verdicts from stale deny states.
+        """
+        targets = self._microfips_devices()
+        if not targets:
+            log.info("No ESP32 devices to reset")
+            return
+
+        for alias, (device, cfg) in targets.items():
+            transport = cfg.get("transport", "serial")
+            if transport == "serial":
+                # Local ESP32 - no reset needed (device isn't running)
+                continue
+
+            host = cfg.get("host") or cfg.get("ssh_host", "")
+            user = cfg.get("user") or cfg.get("ssh_user", "")
+            serial_port = cfg.get("serial_port", "")
+
+            if not host or not serial_port:
+                log.warning("ESP32 %s: missing host or serial_port, skipping reset", alias)
+                continue
+
+            target = f"{user}@{host}" if user else host
+            reset_cmd = (
+                f"bash -l -c 'source /home/ubuntu/export-esp.sh && "
+                f"espflash reset -p {serial_port} --chip esp32'"
+            )
+
+            log.info("Resetting ESP32 %s via SSH", alias)
+            try:
+                result = subprocess.run(
+                    ["ssh", target, reset_cmd],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    log.info("ESP32 %s reset successful", alias)
+                else:
+                    log.warning(
+                        "ESP32 %s reset failed (exit %d): %s",
+                        alias,
+                        result.returncode,
+                        result.stderr.strip(),
+                    )
+            except (subprocess.TimeoutExpired, OSError) as exc:
+                log.warning("ESP32 %s reset timeout or error: %s", alias, exc)
 
     def _microfips_devices(self) -> dict[str, tuple[Device, dict[str, Any]]]:
         out: dict[str, tuple[Device, dict[str, Any]]] = {}

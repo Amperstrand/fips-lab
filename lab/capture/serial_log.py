@@ -46,7 +46,7 @@ class SerialLogCapture:
         proc = subprocess.Popen(
             ["ssh", target, f"sudo cat {self.serial_port}"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            bufsize=1,
+            bufsize=0,
         )
         assert proc.stdout is not None
         with self._local_path.open("w") as fh:
@@ -54,10 +54,11 @@ class SerialLogCapture:
                 raw = proc.stdout.readline()
                 if not raw:
                     break
-                line = raw.decode("utf-8", errors="replace")
+                line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
                 ts = time.strftime("%H:%M:%S")
-                tagged = f"[{ts}] {line}"
+                tagged = f"[{ts}] {line}\n"
                 fh.write(tagged)
+                fh.flush()
                 self._lines.append(tagged)
         proc.terminate()
         proc.wait(timeout=5)
