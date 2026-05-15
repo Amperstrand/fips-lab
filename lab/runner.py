@@ -58,8 +58,9 @@ class LabRunner:
             self._write_static_artifacts()
             self._setup_isolation()
             self._setup_captures()
-            self._start_captures()
+            self._start_serial_captures()
             self._deploy()
+            self._start_btmon_captures()
             self._collect_initial_snapshots()
             self._start_rssi_if_ready()
             if not self.dry_run:
@@ -185,16 +186,15 @@ class LabRunner:
             write_json(self.run_dir / "metrics-timeseries.json", series)
             time.sleep(interval)
 
-    def _setup_captures(self) -> None:
+    def _setup_btmon_captures(self) -> None:
         assert self.run_dir is not None
         capture_cfg = (self.scenario.raw.get("actions") or {}).get("capture") or {}
-        if not capture_cfg:
+        if not capture_cfg.get("btmon"):
             return
 
         for alias, device_cfg in self.resolved_configs.items():
             transport = device_cfg.get("transport", "")
-
-            if capture_cfg.get("btmon") and transport == "ssh" and device_cfg.get("platform") == "linux":
+            if transport == "ssh" and device_cfg.get("platform") == "linux":
                 adapter = device_cfg.get("ble_adapter", "hci0")
                 self.captures.append(BtmonCapture(
                     device_alias=alias,
@@ -205,7 +205,15 @@ class LabRunner:
                     enabled=not self.dry_run,
                 ))
 
-            if capture_cfg.get("serial") and transport in ("serial", "serial-via-ssh"):
+    def _setup_serial_captures(self) -> None:
+        assert self.run_dir is not None
+        capture_cfg = (self.scenario.raw.get("actions") or {}).get("capture") or {}
+        if not capture_cfg.get("serial"):
+            return
+
+        for alias, device_cfg in self.resolved_configs.items():
+            transport = device_cfg.get("transport", "")
+            if transport in ("serial", "serial-via-ssh"):
                 self.captures.append(SerialLogCapture(
                     device_alias=alias,
                     transport=transport,
@@ -216,6 +224,15 @@ class LabRunner:
                     results_dir=self.run_dir,
                     enabled=not self.dry_run,
                 ))
+
+    def _setup_captures(self) -> None:
+        assert self.run_dir is not None
+        capture_cfg = (self.scenario.raw.get("actions") or {}).get("capture") or {}
+        if not capture_cfg:
+            return
+
+        self._setup_btmon_captures()
+        self._setup_serial_captures()
 
         if capture_cfg.get("iperf3"):
             server_cfg = next(
@@ -239,9 +256,19 @@ class LabRunner:
         if capture_cfg.get("rssi"):
             self._defer_rssi = True
 
-    def _start_captures(self) -> None:
+    def _start_btmon_captures(self) -> None:
         for cap in self.captures:
-            cap.start()
+            if isinstance(cap, BtmonCapture):
+                cap.start()
+
+    def _start_serial_captures(self) -> None:
+        for cap in self.captures:
+            if isinstance(cap, SerialLogCapture):
+                cap.start()
+
+    def _start_captures(self) -> None:
+        self._start_btmon_captures()
+        self._start_serial_captures()
 
     def _stop_captures(self) -> None:
         assert self.run_dir is not None

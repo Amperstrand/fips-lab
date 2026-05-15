@@ -154,6 +154,7 @@ class DecryptionSummary:
     rekey_intervals_secs: list[float] = field(default_factory=list)
     handshake_analysis: dict[str, Any] = field(default_factory=dict)
     decryption_by_direction: dict[str, Any] = field(default_factory=dict)
+    failed_frames: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ============================================================================
@@ -294,6 +295,13 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
         payload = data[5:5 + acl_len]
 
         if pb_flags in (PB_FIRST, 0x02):
+            if handle in buffers and len(buffers[handle]) > 0:
+                old_len = len(buffers[handle])
+                l2cap_len = struct.unpack("<H", buffers[handle][0:2])[0] if old_len >= 2 else 0
+                if old_len < 4 + l2cap_len:
+                    log.warning("ACL reassembly: PB_FIRST overwrote incomplete buffer "
+                                "handle=0x%04x old=%d expected=%d",
+                                handle, old_len, 4 + l2cap_len)
             buffers[handle] = bytearray(payload)
         elif pb_flags == PB_CONTINUATION:
             buf = buffers.get(handle)
@@ -697,6 +705,7 @@ def _build_summary(
     fmp_frames_parsed: list[tuple[FmpFrame, bool]],
     decrypted: list[DecryptedFrame],
     failed_count: int,
+    failed_frame_details: list[dict[str, Any]],
     total_decrypted_bytes: int,
     keys: list[tuple[bytes, bytes, str, str]],
     keylog_files: list[str],
@@ -835,6 +844,7 @@ def _build_summary(
         rekey_intervals_secs=rekey_intervals_secs,
         handshake_analysis=handshake_analysis,
         decryption_by_direction=decryption_by_direction,
+        failed_frames=failed_frame_details[:50],
     )
 
 
@@ -857,6 +867,7 @@ def _write_json(summary: DecryptionSummary, path: Path) -> None:
         "rekey_intervals_secs": summary.rekey_intervals_secs,
         "handshake_analysis": summary.handshake_analysis,
         "decryption_by_direction": summary.decryption_by_direction,
+        "failed_frames": summary.failed_frames,
     }
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
@@ -1031,6 +1042,7 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
     decrypted: list[DecryptedFrame] = []
     failed_count = 0
     total_decrypted_bytes = 0
+    failed_frame_details: list[dict[str, Any]] = []
 
     for fmp, sent in fmp_frames:
         if fmp.phase != PHASE_ESTABLISHED:
@@ -1043,6 +1055,15 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
             total_decrypted_bytes += result.plaintext_len
         else:
             failed_count += 1
+            if len(fmp.raw) >= 16:
+                receiver_idx = struct.unpack("<I", fmp.raw[4:8])[0]
+                counter = struct.unpack("<Q", fmp.raw[8:16])[0]
+                failed_frame_details.append({
+                    "receiver_idx": f"0x{receiver_idx:08x}",
+                    "counter": counter,
+                    "frame_size": len(fmp.raw),
+                    "direction": "sent" if sent else "recv",
+                })
 
     log.info("btsnoop: %d/%d decrypted (%d failed)",
              len(decrypted), len(decrypted) + failed_count, failed_count)
@@ -1059,6 +1080,7 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
         fmp_frames_parsed=fmp_frames,
         decrypted=decrypted,
         failed_count=failed_count,
+        failed_frame_details=failed_frame_details,
         total_decrypted_bytes=total_decrypted_bytes,
         keys=keys,
         keylog_files=keylog_files,
