@@ -51,12 +51,14 @@ class RssiCollector:
     _thread: threading.Thread | None = field(default=None, init=False, repr=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False, repr=False)
     _ssh_target: str = field(default="", init=False, repr=False)
+    _consecutive_failures: int = field(default=0, init=False, repr=False)
 
     def __post_init__(self) -> None:
         target = self.host
         if self.user:
             target = f"{self.user}@{self.host}"
         self._ssh_target = target
+        self._consecutive_failures = 0
 
     def _ssh(self, cmd: str, timeout: int = 10) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -66,14 +68,20 @@ class RssiCollector:
 
     def _sample_rssi(self) -> int | None:
         """Read a single RSSI sample via ``hcitool rssi <addr>``."""
-        result = self._ssh(f"hcitool rssi {self.ble_addr}")
+        result = self._ssh(f"sudo hcitool rssi {self.ble_addr}")
         if result.returncode != 0:
-            log.debug("hcitool rssi failed for %s: %s", self.ble_addr, result.stderr.strip())
+            if self._consecutive_failures < 5:
+                log.warning("hcitool rssi failed for %s: %s", self.ble_addr, result.stderr.strip())
+            else:
+                log.debug("hcitool rssi failed for %s: %s", self.ble_addr, result.stderr.strip())
+            self._consecutive_failures += 1
             return None
         match = _RSSI_RE.search(result.stdout)
         if not match:
             log.debug("no RSSI match in output: %s", result.stdout.strip())
+            self._consecutive_failures += 1
             return None
+        self._consecutive_failures = 0
         return int(match.group(1))
 
     def _collection_loop(self) -> None:
@@ -107,6 +115,14 @@ class RssiCollector:
             daemon=True,
         )
         self._thread.start()
+        # Startup self-check: attempt one sample immediately
+        time.sleep(0.5)
+        rssi = self._sample_rssi()
+        if rssi is None:
+            log.warning(
+                "RSSI collector for %s failed startup sample (consecutive failures: %d)",
+                self.device_alias, self._consecutive_failures
+            )
 
     def stop(self) -> dict[str, Any]:
         """Stop collection, save timeseries, return capture info dict."""
