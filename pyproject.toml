@@ -1,12 +1,15 @@
 [project]
 name = "fips-lab"
-version = "0.1.0"
-description = "Physical-device orchestration for FIPS and microfips lab testing"
+version = "0.2.0"
+description = "Physical-device BLE test framework for FIPS and microfips, using labgrid"
 requires-python = ">=3.10"
 dependencies = [
+  "labgrid>=25.0",
+  "pytest>=8.0",
   "pyyaml>=6.0",
   "paramiko>=3.4",
   "pyserial>=3.5",
+  "attrs>=23.0",
 ]
 
 [project.scripts]

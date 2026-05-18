@@ -1,4 +1,7 @@
+labgrid>=25.0
+pytest>=8.0
 pyyaml>=6.0
 paramiko>=3.4
 pyserial>=3.5
 cryptography>=42.0
+attrs>=23.0

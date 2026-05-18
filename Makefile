@@ -3,7 +3,7 @@ INVENTORY ?= inventory/lab.yaml
 RESULTS ?= results
 COMMIT ?= HEAD
 
-.PHONY: setup list dry-run-smoke dry-run-lab dry-run-2node dry-run-campaign-ble test-microfips-smoke test-lab-3node test-lab-2node test-lab-2node-linux-init test-campaign-ble test-campaign-ble-20min test-commit test-lab-2node-commit publish clean-results
+.PHONY: setup list dry-run-smoke dry-run-lab dry-run-2node dry-run-campaign-ble test-microfips-smoke test-lab-3node test-lab-2node test-lab-2node-linux-init test-campaign-ble test-campaign-ble-20min test-commit test-lab-2node-commit publish publish-benchmarks setup-218-phase2 clean-results
 
 setup:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -54,6 +54,15 @@ publish:
 	@RUN_DIR=$$(ls -dt $(RESULTS)/*-lab-* 2>/dev/null | head -1); \
 	if [ -z "$$RUN_DIR" ]; then echo "No test results found in $(RESULTS)/"; exit 1; fi; \
 	bash scripts/publish-report.sh "$$RUN_DIR"
+
+publish-benchmarks:
+	bash scripts/publish-benchmark.sh $(RESULTS)/benchmark-matrix
+
+setup-218-phase2:
+	bash scripts/setup-218-phase2.sh
+
+setup-218-phase2-dry-run:
+	bash scripts/setup-218-phase2.sh --dry-run
 
 clean-results:
 	find $(RESULTS) -maxdepth 1 -type d -mtime +30 -exec rm -rf {} +
