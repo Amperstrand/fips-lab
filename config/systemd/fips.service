@@ -1,0 +1,21 @@
+[Unit]
+Description=FIPS daemon (BLE mesh node)
+After=network.target bluetooth.service
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/src/fips
+ExecStart=/home/ubuntu/src/fips/target/release/fips --config /etc/fips/fips.yaml
+Restart=on-failure
+RestartSec=10
+
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+
+Environment=RUST_LOG=info
+Environment=FIPS_NOISE_KEYLOG=/tmp/fips-keylog.txt
+
+[Install]
+WantedBy=multi-user.target

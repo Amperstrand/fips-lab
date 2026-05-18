@@ -1,0 +1,53 @@
+# Phase 2 environment.yaml — coordinator/exporter mode
+#
+# Unlike Phase 1's inline SSH resources, Phase 2 uses labgrid places
+# that match resources exported by the labgrid-exporter on 218.
+#
+# Places are created and matched dynamically. This file defines the
+# target-to-place mapping and driver configuration.
+
+targets:
+  macbook-local:
+    drivers:
+      - LocalShellDriver: {}
+      - FipsServiceDriver:
+          service_kind: launchd
+          label: com.fips.daemon
+          config_path: /usr/local/etc/fips/fips.yaml
+      - FipsctlDriver:
+          binary: /Users/macbook/src/fips/target/release/fipsctl
+          sudo: true
+      - FipsStrategy: {}
+
+  linux-218:
+    # Place-based resource acquisition from coordinator
+    # Resources (NetworkService, BluetoothAdapter, SerialPort) are
+    # exported by the labgrid-exporter running on 218.
+    resources:
+      - place:
+          name: "linux-218"
+          # Matches exporter resources: NetworkService, BluetoothAdapter
+    drivers:
+      - SSHDriver: {}
+      - FipsServiceDriver:
+          service_kind: systemd
+          service_name: fips
+          config_path: /etc/fips/fips.yaml
+          ble_adapter: hci0
+      - FipsctlDriver:
+          binary: /home/ubuntu/src/fips/target/release/fipsctl
+          sudo: true
+      - FipsStrategy: {}
+
+  esp32-d0wd-01:
+    resources:
+      - place:
+          name: "esp32-d0wd-01"
+          # Matches exporter resources: SerialPort (/dev/ttyUSB0)
+    drivers:
+      - SSHDriver: {}
+      - EspFlashDriver:
+          tool: esptool.py
+          chip: esp32
+          serial_port: /dev/ttyUSB0
+          baud: 921600

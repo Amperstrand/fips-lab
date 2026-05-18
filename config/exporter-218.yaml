@@ -1,0 +1,34 @@
+# labgrid-exporter configuration for 218 (Linux host)
+#
+# This runs ON 218 and exports its locally-attached resources
+# to the labgrid coordinator. The coordinator then makes these
+# resources available to test runners.
+#
+# Start: labgrid-exporter coordinator.yaml
+# (or via systemd: sudo systemctl start labgrid-exporter)
+
+coordinator:
+  address: "192.168.13.218"
+  port: 20408
+
+exporters:
+  linux-218:
+    resources:
+      # BLE adapter for FIPS BLE transport
+      - BluetoothAdapter:
+          name: "hci0"
+
+      # ESP32 serial port (USB-attached)
+      - SerialPort:
+          port: "/dev/ttyUSB0"
+          speed: 115200
+
+      # Network reachability (self)
+      - NetworkService:
+          address: "localhost"
+
+    # Optional: group tag for filtering
+    tags:
+      - "linux"
+      - "ble"
+      - "esp32"

@@ -1,0 +1,14 @@
+[Unit]
+Description=Labgrid Exporter for 218
+After=network.target
+Wants=fips.service
+
+[Service]
+Type=simple
+User=ubuntu
+ExecStart=/home/ubuntu/src/fips-lab/.venv/bin/labgrid-exporter /home/ubuntu/src/fips-lab/config/exporter-218.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
