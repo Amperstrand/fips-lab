@@ -1,210 +1,172 @@
 # fips-lab
 
-Physical-device orchestration for testing `Amperstrand/fips` and `Amperstrand/microfips` on a private lab testbed.
+Physical-device BLE test framework for FIPS and microfips, using labgrid. Runs automated benchmarks and regression tests against real hardware: a MacBook, a Linux box, and ESP32 boards.
 
-This repo is intentionally separate from upstream FIPS. Upstream keeps Docker/CI chaos tests; this lab adds real hardware coverage: BLE hosts, ESP32/microfips boards, routers, old laptops, and later Windows/OpenWrt machines.
+## Architecture Overview
 
-## How It Works
+Two layers sit on top of labgrid:
 
-fips-lab is an **orchestration layer** — it does not compile code or flash firmware itself. It coordinates pre-built binaries on real hardware, runs test scenarios, and collects results.
+**Layer 1: `fips_lab/`** -- custom labgrid drivers and strategy that know how to manage FIPS services, run `fipsctl` commands, flash ESP32s, and track device readiness. These drivers are registered with labgrid's `target_factory` and declared per-target in `environment.yaml`.
 
-### The Build-Deploy-Test Pipeline
+**Layer 2: `tests/`** -- a pytest suite that uses labgrid targets and the custom drivers to run echo RTT benchmarks, throughput measurements, state machine validation, and issue-specific regression tests.
+
+**Legacy: `lab/`** -- the older scenario-based runner (`python -m lab`) still works. It uses YAML scenarios and an inventory file instead of labgrid. Makefile targets like `make test-lab-2node` point at this runner.
+
+## Project Structure
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐
-│  Developer   │    │  fips-lab   │    │  Physical Devices    │
-│  (you)       │    │  (MacBook)  │    │                      │
-│              │    │             │    │  ┌───────────────┐   │
-│ Builds fips  │───▶│ Orchestrates│───▶│ │ MacBook       │   │
-│ on target    │    │ via scenario│    │ │ (local)       │   │
-│ machines     │    │ + inventory │    │ ├───────────────┤   │
-│              │    │             │    │ │ Linux host    │   │
-│              │    │ Collects    │◀───│ │ (SSH)         │   │
-│              │    │ metrics,    │    │ ├───────────────┤   │
-│              │    │ captures,   │    │ │ ESP32 boards  │   │
-│              │    │ analysis    │    │ │ (serial)      │   │
-│              │    │             │    │ └───────────────┘   │
-└─────────────┘    └─────────────┘    └─────────────────────┘
+fips-lab/
+  conftest.py              # pytest fixtures, benchmark collection, peer availability
+  environment.yaml         # labgrid environment config (Phase 1: inline SSH)
+  pyproject.toml           # package metadata and dependencies
+
+  fips_lab/
+    __init__.py            # imports all drivers + strategy for labgrid registration
+    drivers/
+      fips_service.py      # FipsServiceDriver (systemd/launchd start/stop/restart)
+      fipsctl.py           # FipsctlDriver (show_peers, benchmark_echo, etc.)
+      local_shell.py       # LocalShellDriver (subprocess on Mac, no SSH needed)
+      esp_flash.py         # EspFlashDriver (esptool.py flashing via remote shell)
+    strategy/
+      fips.py              # FipsStrategy state machine (off -> deployed -> connected -> ready)
+
+  tests/
+    test_benchmark.py      # parametrized echo + throughput benchmarks
+    test_strategy.py       # FipsStrategy lifecycle tests
+    test_echo.py           # single echo test against ESP32
+    test_issues.py         # regression tests for known issues (#132, #133)
+
+  config/
+    environment-coordinator.yaml  # Phase 2 labgrid config (place-based resources)
+    exporter-218.yaml             # labgrid-exporter config for 218
+    systemd/
+      fips.service                # FIPS daemon unit for 218
+      labgrid-exporter.service    # exporter unit for 218
+
+  lab/                     # legacy scenario runner (still functional)
+  scenarios/               # YAML scenarios for the legacy runner
+  scripts/                 # publish-report.sh, publish-benchmark.sh, setup-218-phase2.sh
+  inventory/               # lab.yaml (gitignored), lab.example.yaml
+  results/                 # test output (gitignored)
 ```
 
-### Who Does What
+## Lab Devices
 
-| Step | Who | How |
-|------|-----|-----|
-| **Build FIPS (macOS)** | Developer, on the MacBook | `cd ~/src/fips && cargo build --release --features ble-macos` |
-| **Build FIPS (Linux)** | Developer, via SSH to Linux host | `ssh 218 "cd ~/fips && cargo build --release"` |
-| **Build microfips firmware** | Developer, on any machine | `cd ~/src/microfips && cargo build --release` (produces `.bin`) |
-| **Deploy FIPS to Mac** | fips-lab (DeployManager) | Restarts via `caffeinate -i fips --config ...` (local process) |
-| **Deploy FIPS to Linux** | fips-lab (DeployManager) | Restarts via `ssh 218 "nohup fips --config ..."` |
-| **Flash microfips to ESP32** | Developer (manual, for now) | `esptool.py --chip esp32 ... write_flash 0x0 firmware.bin` |
-| **Query metrics** | fips-lab (Device layer) | `fipsctl --socket /path show peers` (local or via SSH) |
-| **Capture BLE traffic** | fips-lab (BtmonCapture) | `ssh 218 "sudo btmon -i hci0 -w capture.btsnoop"` then `scp` back |
-| **Collect keylogs** | fips-lab (KeylogCapture) | Reads `FIPS_NOISE_KEYLOG` files from Mac (local) and Linux (SSH) |
-| **Measure throughput** | fips-lab (IperfSession) | Runs `iperf3` between Mac and Linux over the FIPS TUN interface |
-| **Collect RSSI** | fips-lab (RssiCollector) | `ssh 218 "sudo hcitool rssi <addr>"` on the Linux BLE adapter |
-| **Analyze results** | fips-lab (analysis.py) | Reads metrics timeseries, produces verdict + charts |
-| **Publish reports** | fips-lab (publish-report.sh) | Pushes to `gh-pages` branch of fips-lab repo |
+Three targets defined in `environment.yaml`:
 
-### Before Running a Test
+| Target | Role | Transport | BLE Adapter |
+|--------|------|-----------|-------------|
+| `macbook-local` | FIPS host, test controller | LocalShellDriver (subprocess) | macOS Bluetooth |
+| `linux-218` | FIPS host | SSHDriver (via NetworkService to host "218") | hci0 |
+| `esp32-d0wd-01` | microfips device | SSHDriver + EspFlashDriver (ESP32 attached to 218 via USB) | N/A |
 
-fips-lab expects the binaries to already be built and in place. The inventory (`inventory/lab.yaml`) tells fips-lab where to find them:
-
-```yaml
-devices:
-  macbook-local:
-    fips_binary: /Users/macbook/src/fips/target/release/fips    # must exist
-    fipsctl: /Users/macbook/src/fips/target/release/fipsctl     # must exist
-    config_path: /usr/local/etc/fips/fips.yaml                  # must exist
-
-  linux-218:
-    transport: ssh
-    host: "218"
-    fips_binary: /home/ubuntu/fips/target/release/fips          # must exist on host
-    fipsctl: /home/ubuntu/fips/target/release/fipsctl           # must exist on host
-    config_path: /etc/fips/fips.yaml                            # must exist on host
-```
-
-**To test a new commit**, you must:
-1. Check out the branch/commit in the fips repo on both machines
-2. Build on both machines
-3. Then run `make test-lab-2node` or `make test-campaign-ble`
-
-fips-lab does **not** `git pull` or `cargo build` — that's your responsibility. It records the current commit hash in `metadata.json` for provenance.
-
-## Design
-
-fips-lab mirrors the upstream chaos runner shape:
-
-1. Load a YAML scenario (or a campaign of multiple scenarios).
-2. Resolve real devices from an inventory.
-3. Generate isolated lab ACL artifacts (`peers.allow`, `peers.deny`).
-4. Stop any running FIPS instances, restart them with keylog enabled.
-5. Poll until nodes are ready (respond to `fipsctl show status`).
-6. Run a metrics collection loop for the scenario duration.
-7. Stop captures, collect keylogs, run iperf3 throughput tests.
-8. Analyze results and produce a verdict (PASS / FAIL / DEGRADED).
-
-The first priority is not broad CI. It is **repeatable physical evidence for a specific git commit and device set**.
-
-## Device Types
-
-Real device details live in `inventory/lab.yaml`, which is gitignored.
-
-| Transport | Device class | Example | How fips-lab communicates |
-|-----------|-------------|---------|--------------------------|
-| `local` | FIPS host (macOS) | This MacBook | Runs `fipsctl` and process commands directly |
-| `ssh` | FIPS host (Linux) | Linux box "218" | `ssh user@host` for all commands |
-| `serial` | microfips (local ESP32) | USB-attached ESP32 | Serial port for log streaming |
-| `serial-via-ssh` | microfips (remote ESP32) | ESP32 attached to Linux host | SSH tunnel to serial port |
-
-## Scenarios
-
-Scenarios are YAML files in `scenarios/` that define what to test:
-
-- **`lab-2node-ble.yaml`** — Mac initiates → Linux. 10 min BLE mesh with btmon, keylog, iperf3.
-- **`lab-2node-ble-linux-init.yaml`** — Linux initiates → Mac. Same tests, opposite direction.
-- **`lab-3node-isolated.yaml`** — Mac + Linux + ESP32. Isolated 3-node mesh.
-- **`microfips-smoke.yaml`** — Flash one ESP32, start one Linux host, 5 min BLE connection test.
-
-### Campaigns
-
-A **campaign** runs multiple scenarios back-to-back and produces a combined report. This is useful for testing both BLE initiator directions in one run:
-
-```yaml
-# scenarios/campaign-ble-bidirectional.yaml
-campaign:
-  name: ble-bidirectional
-  description: Run both BLE initiator directions (mac→linux and linux→mac) back-to-back
-  scenarios:
-    - scenarios/lab-2node-ble.yaml
-    - scenarios/lab-2node-ble-linux-init.yaml
-```
-
-Campaign results include a `campaign-summary.md` with side-by-side comparison of metrics across both directions.
+Each target gets its own set of drivers and a FipsStrategy instance. The `fipsctl` binary path and FIPS config path are per-target in the environment config.
 
 ## Quick Start
 
 ```bash
-make setup                    # install Python dependencies
-cp inventory/lab.example.yaml inventory/lab.yaml
-$EDITOR inventory/lab.yaml    # adjust paths, hosts, identities
-make list                     # show available scenarios
-make dry-run-smoke            # verify everything without touching devices
+make setup                    # install Python dependencies (via pip/requirements.txt)
 ```
 
-A dry run does not touch devices. It verifies scenario loading, inventory resolution, lab ACL generation, metadata, snapshots, and result directory layout.
+Devices must be pre-built and reachable. FIPS binaries, `fipsctl`, and FIPS config files need to exist on each machine. fips-lab does not build or deploy FIPS itself.
+
+Run the labgrid-based tests:
+
+```bash
+pytest --lg-env=environment.yaml tests/ -v
+```
+
+Run only benchmarks:
+
+```bash
+pytest --lg-env=environment.yaml tests/ -v -m benchmark
+```
 
 ## Running Tests
 
-### Single scenario
+### pytest + labgrid (primary)
+
+The `--lg-env` flag tells labgrid which environment file to use for target resolution. Tests import `fips_lab` in `conftest.py`, which registers the custom drivers with labgrid.
+
+Key markers:
+
+- `@pytest.mark.benchmark` -- parametrized echo and throughput benchmarks
+- `@pytest.mark.xfail` -- known failures (ESP32 L2CAP instability, issue #133)
+- `with_mac_peer` / `with_esp32_peer` fixtures -- skip the test if the peer isn't connected
+
+Test types:
+
+- **Echo benchmarks** (`test_benchmark.py`) -- parametrized over payload sizes (0 to 256 bytes), measures RTT median and loss count across all device pairs
+- **Throughput benchmarks** (`test_benchmark.py`) -- parametrized over frame sizes (20 to 100 bytes), measures achieved bitrate for upload direction
+- **Strategy tests** (`test_strategy.py`) -- drives FipsStrategy through `off -> deployed -> connected -> ready`, verifies service state at each step
+- **Issue tests** (`test_issues.py`) -- regression tests for documented issues (large payload loss on #133, download direction on #132)
+- **Echo smoke** (`test_echo.py`) -- single echo test against ESP32 with xfail
+
+Some test directions are skipped due to known limitations: Mac cannot initiate BLE scans (issue #128), ESP32 cannot initiate benchmarks, and download throughput is unimplemented (issue #132).
+
+### Legacy scenario runner
+
+The Makefile has targets that use the older `lab/` runner:
 
 ```bash
-make test-lab-2node           # Mac initiates → Linux
-make test-lab-2node-linux-init # Linux initiates → Mac
+make test-lab-2node             # Mac initiates to Linux
+make test-lab-2node-linux-init  # Linux initiates to Mac
+make test-campaign-ble          # both directions back-to-back
+make test-lab-3node             # Mac + Linux + ESP32
+make test-microfips-smoke       # flash + smoke test
 ```
 
-### Campaign (both directions)
+These require `inventory/lab.yaml` (gitignored, copy from `inventory/lab.example.yaml`).
+
+## Test Results and Publishing
+
+### Benchmark results (labgrid/pytest)
+
+Benchmark tests feed results into a session-scoped `benchmark_results` fixture. At session end, results are written to `results/benchmark-matrix/` as a timestamped JSON file containing all measurements plus git info.
 
 ```bash
-make test-campaign-ble        # Runs both scenarios, produces combined report
+# Run benchmarks and auto-publish
+pytest --lg-env=environment.yaml tests/test_benchmark.py --publish-benchmarks
+# or publish after the fact
+make publish-benchmarks
 ```
 
-### What happens during a test run
+Live dashboard: https://amperstrand.github.io/fips-lab/benchmarks/
 
-1. **ACL setup** — writes `peers.allow` with lab device npubs and `peers.deny` containing `ALL`
-2. **Capture setup** — starts `btmon` on Linux (SSH) for BLE HCI capture
-3. **Deploy** — kills existing FIPS processes, restarts with `FIPS_NOISE_KEYLOG` env var
-4. **Readiness poll** — waits up to 60s for each node to respond to `fipsctl show status`
-5. **Warmup** — 30s for BLE discovery and initial connection
-6. **Metrics loop** — collects `show_status`, `show_peers`, `show_mmp` at 30s intervals
-7. **RSSI collection** — polls `hcitool rssi` on Linux for signal strength
-8. **Capture stop** — stops btmon, copies btsnoop file via `scp`
-9. **Keylog collection** — reads keylog files from Mac (sudo) and Linux (SSH + sudo)
-10. **iperf3** — TCP and UDP throughput tests over the FIPS TUN interface
-11. **BTSnoop decryption** — decrypts BLE capture using keylog keys
-12. **Analysis** — produces verdict, assertions, charts (RTT, peer count, rekeys, RSSI)
+### Scenario results (legacy runner)
 
-### Results
-
-Each run creates a timestamped directory under `results/`:
-
-```
-results/20260508-143000-lab-2node-ble/
-├── metadata.json              # timestamp, git commits, device info
-├── scenario.yaml              # copy of the scenario file
-├── devices.yaml               # resolved inventory devices
-├── snapshot-initial.json      # metrics at start
-├── snapshot-final.json        # metrics at end
-├── metrics-timeseries.json    # all metric samples over time
-├── capture-results.json       # btmon, serial capture info
-├── keylog-results.json        # keylog collection stats
-├── iperf3-results.json        # throughput test results
-├── analysis.json              # structured verdict + metrics
-├── analysis.md                # human-readable report
-├── chart-rtt.svg              # RTT over time
-├── chart-peers.svg            # peer count over time
-├── chart-rekeys.svg           # rekey events + disconnects
-├── chart-rssi.svg             # BLE signal strength
-├── btmon.btsnoop              # raw BLE capture
-├── keylog-mac.txt             # Noise keys from Mac
-└── keylog-linux.txt           # Noise keys from Linux
-```
-
-### Publishing Reports
+The legacy runner creates rich timestamped directories under `results/` with metrics timeseries, btmon captures, keylogs, iperf3 data, analysis, and SVG charts.
 
 ```bash
-make test-lab-2node-publish    # run test and publish to gh-pages
-# or after a run:
-bash scripts/publish-report.sh results/20260508-143000-lab-2node-ble
+make test-lab-2node-publish     # run and publish
+bash scripts/publish-report.sh results/<run-dir>  # publish existing results
 ```
 
-Publishing copies results to a `gh-pages` branch, generates an HTML dashboard with per-commit test history, verdict trends, and a device compatibility matrix. Keylogs, captures, and device paths are redacted before publishing.
+## Custom Drivers
+
+### FipsServiceDriver (`fips_lab/drivers/fips_service.py`)
+
+Manages the FIPS daemon through the OS service manager. Supports `systemd` (Linux) and `launchd` (macOS). On Linux, the `restart()` method also resets the BLE adapter (`hciconfig hci0 down/up`) to work around a kernel bug where the HCI LE Create Connection opcode returns `-EBUSY` after prolonged scanning.
+
+### FipsctlDriver (`fips_lab/drivers/fipsctl.py`)
+
+Wraps the `fipsctl` CLI. Methods: `show_status()`, `show_peers()`, `has_peer(npub)`, `benchmark_echo(peer, count, payload_size)`, `benchmark_throughput(peer, direction, duration, frame_size, rate)`. All methods return parsed JSON.
+
+### LocalShellDriver (`fips_lab/drivers/local_shell.py`)
+
+Implements labgrid's `CommandProtocol` using `subprocess.run`. Used for the Mac target where SSH isn't needed.
+
+### EspFlashDriver (`fips_lab/drivers/esp_flash.py`)
+
+Flashes firmware to ESP32 via `esptool.py` over a serial port. Typically invoked through an SSH-bound shell since the ESP32 is attached to the Linux host.
+
+### FipsStrategy (`fips_lab/strategy/fips.py`)
+
+State machine with states: `unknown -> off -> deployed -> connected -> ready`. The `transition()` method drives side effects at each step (stop service, start service, wait for peers). The `force()` method sets state without side effects.
 
 ## Isolation Policy
 
-Lab FIPS nodes should not join the public/broader FIPS network while testing.
-
-Scenarios use:
+Lab FIPS nodes must not join the public FIPS network during testing. The legacy scenarios use an isolation policy:
 
 ```yaml
 isolation:
@@ -214,38 +176,57 @@ isolation:
   write_peers_deny_all: true
 ```
 
-The runner writes `peers.allow` with lab device npubs and `peers.deny` containing `ALL`. FIPS ACL behavior is allow-first, then deny — lab peers are permitted, everyone else is blocked.
+This writes `peers.allow` with lab device npubs and `peers.deny` containing `ALL`. FIPS ACL behavior is allow-first, then deny, so lab peers are permitted and everyone else is blocked.
 
-## Assertions
+## Phase 2: Coordinator/Exporter Architecture
 
-Each scenario is evaluated against a set of assertions:
+The current setup (Phase 1) uses inline SSH resources in `environment.yaml`. Phase 2 moves to a labgrid coordinator/exporter model where 218 exports its resources (BLE adapter, serial port, network) and a coordinator matches them to places dynamically.
 
-| Assertion | Pass condition |
-|-----------|---------------|
-| All expected peers connected | Every link in `topology.links` shows `connected` |
-| MMP loss < 5% | Max loss rate across all samples is under 5% |
-| Keylog coverage | Keylog files contain keys for all connected pairs |
-| No loop errors | No `"error"` keys in metrics timeseries |
-| No disconnects | No peer disappearances between consecutive samples |
+The configs are ready in `config/`:
 
-The overall verdict is determined by:
+- `config/exporter-218.yaml` -- defines what 218 exports (BluetoothAdapter hci0, SerialPort ttyUSB0, NetworkService)
+- `config/environment-coordinator.yaml` -- like the current `environment.yaml` but uses place-based resource acquisition instead of inline SSH
+- `config/systemd/fips.service` -- systemd unit for the FIPS daemon on 218, with keylog enabled and auto-restart
+- `config/systemd/labgrid-exporter.service` -- systemd unit for the exporter on 218
 
-- **PASS** — all assertions pass
-- **DEGRADED** — connectivity passes but metric assertions fail
-- **FAIL** — connectivity assertions fail
-- **INSUFFICIENT_DATA** — no timeseries data collected
+Deploy Phase 2 to 218:
+
+```bash
+make setup-218-phase2          # push configs + systemd units to 218
+make setup-218-phase2-dry-run  # preview what would be deployed
+```
+
+Currently blocked on 218 being online.
 
 ## Configuration Files
 
-### FIPS node configs
+- `environment.yaml` -- labgrid target definitions, tracked in git. Contains driver bindings and binary paths for all three devices.
+- `config/environment-coordinator.yaml` -- Phase 2 variant using place-based resources instead of inline SSH.
+- `inventory/lab.yaml` -- legacy runner device details, gitignored. Contains SSH hosts, binary paths, identities. Copy from `inventory/lab.example.yaml`.
+- FIPS node configs live on each machine (`/usr/local/etc/fips/fips.yaml` on Mac, `/etc/fips/fips.yaml` on Linux). These are not managed by fips-lab.
 
-Each device in the inventory points to a FIPS config file on that machine:
+## Makefile Targets
 
-- Mac: `/usr/local/etc/fips/fips.yaml`
-- Linux: `/etc/fips/fips.yaml`
+```
+make setup                      install Python dependencies
+make list                       list legacy scenarios
+make dry-run-smoke              dry-run microfips smoke scenario
+make dry-run-lab                dry-run 3-node isolated scenario
+make dry-run-2node              dry-run 2-node BLE scenario
+make dry-run-campaign-ble       dry-run bidirectional BLE campaign
 
-These must be pre-configured with the correct identity, BLE transport settings, and ACL paths. fips-lab does not write these — it only restarts FIPS with them.
+make test-microfips-smoke       smoke test ESP32 + Linux
+make test-lab-3node             3-node isolated mesh
+make test-lab-2node             Mac initiates to Linux
+make test-lab-2node-linux-init  Linux initiates to Mac
+make test-lab-2node-publish     run 2-node and publish
+make test-lab-2node-commit      run 2-node for a specific commit
+make test-campaign-ble          bidirectional campaign
+make test-campaign-ble-20min    extended campaign with publish
 
-### Inventory
-
-`inventory/lab.yaml` (gitignored) contains real device details: SSH hosts, binary paths, control sockets, BLE adapter names, identities, and serial ports. Copy from `inventory/lab.example.yaml` and adjust.
+make publish                    publish latest scenario results
+make publish-benchmarks         publish benchmark-matrix to gh-pages
+make setup-218-phase2           deploy Phase 2 configs to 218
+make setup-218-phase2-dry-run   preview Phase 2 deployment
+make clean-results              remove results older than 30 days
+```

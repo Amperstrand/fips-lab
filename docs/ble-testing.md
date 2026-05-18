@@ -90,11 +90,28 @@ The most common setup is a Mac and a Linux box within BLE range:
 
 ### Automated lab tests (fips-lab)
 
-The `fips-lab` repo orchestrates physical-device tests with deploy/restart, metrics collection, capture, and analysis:
+The `fips-lab` repo provides two ways to run physical-device tests:
+
+**labgrid pytest framework (primary)**
 
 ```bash
 cd ~/src/fips-lab
 
+# All tests
+pytest --lg-env=environment.yaml tests/ -v
+
+# Benchmarks only
+pytest --lg-env=environment.yaml tests/ -v -m benchmark
+
+# Run and auto-publish to gh-pages
+pytest --lg-env=environment.yaml tests/test_benchmark.py --publish-benchmarks
+```
+
+The labgrid framework uses custom drivers (FipsServiceDriver, FipsctlDriver) and peer availability fixtures. Tests that require a peer which isn't connected are automatically skipped.
+
+**Legacy scenario runner**
+
+```bash
 # Single direction (Mac initiates)
 make test-lab-2node
 
@@ -103,16 +120,11 @@ make test-lab-2node-linux-init
 
 # Both directions back-to-back with combined report
 make test-campaign-ble
-
-# Dry run (no devices touched)
-make dry-run-2node
 ```
 
-fips-lab handles FIPS restart, BLE discovery warmup, metrics collection, btmon capture, keylog extraction, iperf3 throughput, and produces a full analysis report with verdict.
+Results are published to https://amperstrand.github.io/fips-lab/benchmarks/
 
-Results are saved to `fips-lab/results/<timestamp>-<scenario>/`.
-
-See the fips-lab README for full documentation on the build-deploy-test pipeline.
+See the fips-lab README for full documentation.
 
 ### Legacy stability test script
 
