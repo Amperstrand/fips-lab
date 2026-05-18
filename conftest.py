@@ -1,10 +1,36 @@
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
 import fips_lab  # registers custom drivers with labgrid's target_factory
+
+
+def _git_info(repo_path: Path) -> dict[str, object]:
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo_path, text=True,
+        ).strip()
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_path, text=True,
+        ).strip()
+        dirty = bool(subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=repo_path, text=True,
+        ).strip())
+        return {"commit": commit[:12], "branch": branch, "dirty": dirty}
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return {}
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--publish-benchmarks",
+        action="store_true",
+        default=False,
+        help="Publish benchmark results to gh-pages after session",
+    )
+
 
 MAC_NPUB = "npub1uwwvvqqqkrkp58txtkaevw20wvqr64rlkhsunwlegfe9lyz9q2asww7dem"
 LINUX_NPUB = "npub1peaqmgq6y4wduyr2yqh0fatnvah0ncj0rjqhd5p6aqaz5wsr05ssu0cnha"
@@ -54,9 +80,19 @@ def benchmark_results(request):
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
     output_file = output_dir / f"{timestamp}.json"
+    repo_dir = Path(request.config.rootdir)
     with open(output_file, "w") as fh:
         json.dump(
-            {"timestamp": timestamp, "scenario": "benchmark-matrix", "results": results},
+            {
+                "timestamp": timestamp,
+                "scenario": "benchmark-matrix",
+                "fips_lab_git": _git_info(repo_dir),
+                "results": results,
+            },
             fh,
             indent=2,
         )
+    if request.config.getoption("--publish-benchmarks", default=False):
+        script = repo_dir / "scripts" / "publish-benchmark.sh"
+        if script.exists():
+            subprocess.run([str(script), str(output_dir)], check=False)
