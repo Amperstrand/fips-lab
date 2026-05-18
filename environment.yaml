@@ -1,0 +1,42 @@
+targets:
+  macbook-local:
+    drivers:
+      - LocalShellDriver: {}
+      - FipsServiceDriver:
+          service_kind: launchd
+          label: com.fips.daemon
+          config_path: /usr/local/etc/fips/fips.yaml
+      - FipsctlDriver:
+          binary: /Users/macbook/src/fips/target/release/fipsctl
+          sudo: true
+      - FipsStrategy: {}
+
+  linux-218:
+    resources:
+      - NetworkService:
+          address: "218"
+          username: ubuntu
+    drivers:
+      - SSHDriver: {}
+      - FipsServiceDriver:
+          service_kind: systemd
+          service_name: fips
+          config_path: /etc/fips/fips.yaml
+          ble_adapter: hci0
+      - FipsctlDriver:
+          binary: /home/ubuntu/src/fips/target/release/fipsctl
+          sudo: true
+      - FipsStrategy: {}
+
+  esp32-d0wd-01:
+    resources:
+      - NetworkService:
+          address: "218"
+          username: ubuntu
+    drivers:
+      - SSHDriver: {}
+      - EspFlashDriver:
+          tool: esptool.py
+          chip: esp32
+          serial_port: /dev/ttyUSB0
+          baud: 921600
