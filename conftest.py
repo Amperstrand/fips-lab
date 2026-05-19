@@ -1,5 +1,6 @@
 import json
 import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,11 +31,55 @@ def pytest_addoption(parser):
         default=False,
         help="Publish benchmark results to gh-pages after session",
     )
+    parser.addoption(
+        "--wait-peers-timeout",
+        type=int,
+        default=120,
+        help="Max seconds to wait for BLE peers to connect (default: 120)",
+    )
 
 
 MAC_NPUB = "npub1uwwvvqqqkrkp58txtkaevw20wvqr64rlkhsunwlegfe9lyz9q2asww7dem"
 LINUX_NPUB = "npub1peaqmgq6y4wduyr2yqh0fatnvah0ncj0rjqhd5p6aqaz5wsr05ssu0cnha"
 ESP32_NPUB = "npub1ccz8l9zpa47k6vz9gphftsrumpw80rjt3nhnefat4symjhrsnmjs38mnyd"
+
+
+def _wait_for_peer(target, npub: str, timeout: int) -> bool:
+    target.activate("FipsctlDriver")
+    fipsctl = target.get_driver("FipsctlDriver")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if fipsctl.has_peer(npub):
+                return True
+        except Exception:
+            pass
+        time.sleep(5)
+    return False
+
+
+@pytest.fixture(scope="session")
+def mac_peer_ready(env):
+    timeout = env.config.getoption("--wait-peers-timeout", default=120)
+    linux = env.get_target("linux-218")
+    if not _wait_for_peer(linux, MAC_NPUB, timeout):
+        pytest.skip(f"Mac peer not connected after {timeout}s")
+
+
+@pytest.fixture(scope="session")
+def linux_peer_ready(env):
+    timeout = env.config.getoption("--wait-peers-timeout", default=120)
+    mac = env.get_target("macbook-local")
+    if not _wait_for_peer(mac, LINUX_NPUB, timeout):
+        pytest.skip(f"Linux peer not connected after {timeout}s")
+
+
+@pytest.fixture(scope="session")
+def esp32_peer_ready(env):
+    timeout = env.config.getoption("--wait-peers-timeout", default=120)
+    linux = env.get_target("linux-218")
+    if not _wait_for_peer(linux, ESP32_NPUB, timeout):
+        pytest.skip(f"ESP32 peer not connected after {timeout}s")
 
 
 def _require_peer(linux_target, npub: str):
@@ -44,13 +89,25 @@ def _require_peer(linux_target, npub: str):
         pytest.skip(f"Peer {npub[:12]}... not connected")
 
 
+def _require_peer_on(target, npub: str):
+    target.activate("FipsctlDriver")
+    fipsctl = target.get_driver("FipsctlDriver")
+    if not fipsctl.has_peer(npub):
+        pytest.skip(f"Peer {npub[:12]}... not connected")
+
+
 @pytest.fixture
-def with_mac_peer(linux_target):
+def with_mac_peer(linux_target, mac_peer_ready):
     _require_peer(linux_target, MAC_NPUB)
 
 
 @pytest.fixture
-def with_esp32_peer(linux_target):
+def with_linux_peer(mac_target, linux_peer_ready):
+    _require_peer_on(mac_target, LINUX_NPUB)
+
+
+@pytest.fixture
+def with_esp32_peer(linux_target, esp32_peer_ready):
     _require_peer(linux_target, ESP32_NPUB)
 
 

@@ -85,13 +85,12 @@ def test_echo_linux_to_esp32(linux_target, benchmark_results, payload_size, with
 
 
 @pytest.mark.benchmark
-@pytest.mark.skip(reason="Mac cannot initiate BLE scans, issue #128")
 @pytest.mark.parametrize(
     "payload_size",
     ECHO_PAYLOAD_SIZES,
     ids=[f"ps{ps}" for ps in ECHO_PAYLOAD_SIZES],
 )
-def test_echo_mac_to_linux(mac_target, benchmark_results, payload_size):
+def test_echo_mac_to_linux(mac_target, benchmark_results, payload_size, with_linux_peer):
     fipsctl = mac_target.get_driver("FipsctlDriver")
     result = fipsctl.benchmark_echo(
         LINUX_NPUB, count=ECHO_COUNT, payload_size=payload_size,
@@ -160,13 +159,12 @@ def test_throughput_upload_linux_to_esp32(linux_target, benchmark_results, frame
 
 
 @pytest.mark.benchmark
-@pytest.mark.skip(reason="Mac cannot initiate BLE scans, issue #128")
 @pytest.mark.parametrize(
     "frame_size",
     THROUGHPUT_FRAME_SIZES,
     ids=[f"fs{fs}" for fs in THROUGHPUT_FRAME_SIZES],
 )
-def test_throughput_upload_mac_to_linux(mac_target, benchmark_results, frame_size):
+def test_throughput_upload_mac_to_linux(mac_target, benchmark_results, frame_size, with_linux_peer):
     fipsctl = mac_target.get_driver("FipsctlDriver")
     result = fipsctl.benchmark_throughput(
         LINUX_NPUB,

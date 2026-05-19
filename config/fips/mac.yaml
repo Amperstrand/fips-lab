@@ -1,0 +1,35 @@
+# FIPS node configuration: macbook (macOS)
+# Role: BLE peripheral (advertiser, no scan)
+# Managed by: config/launchd/com.fips.daemon.plist
+# Control socket: /tmp/fips-control.sock (needs sudo)
+
+dns:
+  enabled: false
+
+node:
+  heartbeat_interval_secs: 15
+  identity:
+    persistent: true
+  link_dead_timeout_secs: 60
+  log_level: debug
+  rekey:
+    after_secs: 1800
+    enabled: true
+
+transports:
+  ble:
+    accept_connections: true
+    adapter: default
+    advertise: true
+    auto_connect: true
+    mtu: 2048
+    psm: 133
+    scan: true
+    send_burst_bytes: 2048
+    send_rate_bps: 80000
+    srtt_reconnect_threshold_ms: 10000
+  udp:
+    bind_addr: 0.0.0.0:2121
+
+tun:
+  enabled: false

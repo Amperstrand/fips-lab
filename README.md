@@ -70,6 +70,20 @@ make setup                    # install Python dependencies (via pip/requirement
 
 Devices must be pre-built and reachable. FIPS binaries, `fipsctl`, and FIPS config files need to exist on each machine. fips-lab does not build or deploy FIPS itself.
 
+### Starting FIPS on Mac
+
+macOS CoreBluetooth doesn't grant Bluetooth permission to launchd-managed processes. FIPS on Mac must be started manually from Terminal (which has Bluetooth permission):
+
+```bash
+sudo RUST_LOG=debug FIPS_NOISE_KEYLOG=/tmp/fips-keylog-mac.txt \
+  caffeinate -i /Users/macbook/src/fips/target/release/fips \
+  --config /usr/local/etc/fips/fips.yaml > /tmp/fips.log 2>&1 &
+```
+
+`caffeinate -i` prevents macOS from sleeping and killing the process. The canonical config is at `config/fips/mac.yaml` (mirrored to `/usr/local/etc/fips/fips.yaml`).
+
+FIPS on Linux (218) runs as a systemd service and starts automatically on boot.
+
 Run the labgrid-based tests:
 
 ```bash
@@ -198,12 +212,22 @@ make setup-218-phase2-dry-run  # preview what would be deployed
 
 Currently blocked on 218 being online.
 
+Deploy to 218:
+
+```bash
+make setup-218-phase2          # deploy canonical FIPS config + systemd units
+make setup-218-phase2-dry-run  # preview what would be deployed
+```
+
 ## Configuration Files
 
 - `environment.yaml` -- labgrid target definitions, tracked in git. Contains driver bindings and binary paths for all three devices.
+- `config/fips/mac.yaml` -- canonical FIPS config for Mac (BLE advertiser, no scan).
+- `config/fips/linux-218.yaml` -- canonical FIPS config for 218 (BLE scanner + advertiser). Deployed to `/etc/fips/fips.yaml` by `setup-218-phase2.sh`.
+- `config/systemd/fips.service` -- systemd unit for 218. Runs as root (fixes key permissions + control socket).
+- `config/launchd/com.fips.daemon.plist` -- launchd plist for Mac (not usable yet -- macOS CoreBluetooth blocks Bluetooth from launchd).
 - `config/environment-coordinator.yaml` -- Phase 2 variant using place-based resources instead of inline SSH.
 - `inventory/lab.yaml` -- legacy runner device details, gitignored. Contains SSH hosts, binary paths, identities. Copy from `inventory/lab.example.yaml`.
-- FIPS node configs live on each machine (`/usr/local/etc/fips/fips.yaml` on Mac, `/etc/fips/fips.yaml` on Linux). These are not managed by fips-lab.
 
 ## Makefile Targets
 

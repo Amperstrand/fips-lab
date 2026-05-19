@@ -5,17 +5,23 @@ Wants=bluetooth.service
 
 [Service]
 Type=simple
-User=ubuntu
+User=root
 WorkingDirectory=/home/ubuntu/src/fips
 ExecStart=/home/ubuntu/src/fips/target/release/fips --config /etc/fips/fips.yaml
 Restart=on-failure
 RestartSec=10
 
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_DAC_OVERRIDE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_DAC_OVERRIDE
 
 Environment=RUST_LOG=info
 Environment=FIPS_NOISE_KEYLOG=/tmp/fips-keylog.txt
+
+# Allow environment pass-through for keylog paths
+PassEnvironment=FIPS_NOISE_KEYLOG FIPS_BLE_EVENT_LOG
+
+# Share /tmp with system (for keylog files)
+PrivateTmp=no
 
 [Install]
 WantedBy=multi-user.target

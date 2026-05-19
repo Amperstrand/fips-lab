@@ -1,0 +1,40 @@
+# FIPS node configuration: linux-218 (Ubuntu, BlueZ/hci0)
+# Role: BLE central + peripheral (scan + advertise)
+# Managed by: config/systemd/fips.service (systemd, User=root)
+# Control socket: /run/fips/control.sock (needs sudo)
+
+dns:
+  enabled: false
+
+node:
+  heartbeat_interval_secs: 15
+  identity:
+    persistent: true
+  link_dead_timeout_secs: 60
+  log_level: debug
+  rekey:
+    after_secs: 1800
+    enabled: true
+
+transports:
+  ble:
+    adapter: hci0
+    psm: 133
+    mtu: 2048
+    accept_connections: true
+    auto_connect: true
+    scan: true
+    advertise: true
+    send_rate_bps: 80000
+    send_burst_bytes: 2048
+    conn_param_refresh_secs: 60
+    conn_param_min_interval: 6
+    conn_param_max_interval: 20
+    conn_param_latency: 0
+    conn_param_timeout: 2000
+    srtt_reconnect_threshold_ms: 10000
+  udp:
+    bind_addr: 0.0.0.0:2121
+
+tun:
+  enabled: false

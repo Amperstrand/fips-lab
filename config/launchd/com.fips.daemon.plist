@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.fips.daemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/macbook/src/fips/target/release/fips</string>
+        <string>--config</string>
+        <string>/usr/local/etc/fips/fips.yaml</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>RUST_LOG</key>
+        <string>debug</string>
+        <key>FIPS_NOISE_KEYLOG</key>
+        <string>/tmp/fips-keylog-mac.txt</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/fips.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/fips.log</string>
+
+    <key>LowPriorityBackgroundIO</key>
+    <false/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>
