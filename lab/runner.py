@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -565,12 +566,15 @@ class LabRunner:
     def _publish_results(self) -> None:
         assert self.run_dir is not None
         repo_root = Path(__file__).resolve().parent.parent
-        script_path = repo_root / "scripts" / "publish-report.sh"
+        script_path = repo_root / "scripts" / "publish-results.py"
         if not script_path.exists():
             log.warning("Publish script not found at %s", script_path)
             return
         log.info("Publishing results from %s", self.run_dir)
-        result = subprocess.run(["bash", str(script_path), str(self.run_dir)], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            [sys.executable, str(script_path), str(self.run_dir), "--project-tag", "fips-ble"],
+            capture_output=True, text=True, check=False,
+        )
         if result.returncode == 0:
             log.info("Publish succeeded")
         else:

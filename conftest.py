@@ -1,5 +1,7 @@
 import json
+import os
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -150,6 +152,12 @@ def benchmark_results(request):
             indent=2,
         )
     if request.config.getoption("--publish-benchmarks", default=False):
-        script = repo_dir / "scripts" / "publish-benchmark.sh"
+        script = repo_dir / "scripts" / "publish-results.py"
         if script.exists():
-            subprocess.run([str(script), str(output_dir)], check=False)
+            env = os.environ.copy()
+            env.setdefault("PROJECT_TAG", "fips-benchmark")
+            subprocess.run(
+                [sys.executable, str(script), str(output_file), "--project-tag", "fips-benchmark"],
+                check=False,
+                env=env,
+            )
