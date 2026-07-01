@@ -53,10 +53,12 @@ test-campaign-ble-20min:
 publish:
 	@RUN_DIR=$$(ls -dt $(RESULTS)/*-lab-* 2>/dev/null | head -1); \
 	if [ -z "$$RUN_DIR" ]; then echo "No test results found in $(RESULTS)/"; exit 1; fi; \
-	bash scripts/publish-report.sh "$$RUN_DIR"
+	python3 scripts/publish-results.py "$$RUN_DIR" --project-tag fips-ble
 
 publish-benchmarks:
-	bash scripts/publish-benchmark.sh $(RESULTS)/benchmark-matrix
+	@LATEST_JSON=$$(ls -t $(RESULTS)/benchmark-matrix/*.json 2>/dev/null | head -1); \
+	if [ -z "$$LATEST_JSON" ]; then echo "No benchmarks found in $(RESULTS)/benchmark-matrix/"; exit 1; fi; \
+	python3 scripts/publish-results.py "$$LATEST_JSON" --project-tag fips-benchmark
 
 setup-218-phase2:
 	bash scripts/setup-218-phase2.sh
