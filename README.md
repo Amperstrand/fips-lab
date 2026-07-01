@@ -45,7 +45,7 @@ fips-lab/
 
   lab/                     # legacy scenario runner (still functional)
   scenarios/               # YAML scenarios for the legacy runner
-  scripts/                 # publish-report.sh, publish-benchmark.sh, setup-218-phase2.sh
+  scripts/                 # publish-results.py, setup-218-phase2.sh
   inventory/               # lab.yaml (gitignored), lab.example.yaml
   results/                 # test output (gitignored)
 ```
@@ -139,13 +139,13 @@ These require `inventory/lab.yaml` (gitignored, copy from `inventory/lab.example
 Benchmark tests feed results into a session-scoped `benchmark_results` fixture. At session end, results are written to `results/benchmark-matrix/` as a timestamped JSON file containing all measurements plus git info.
 
 ```bash
-# Run benchmarks and auto-publish
+# Run benchmarks and auto-publish to Blossom + Nostr
 pytest --lg-env=environment.yaml tests/test_benchmark.py --publish-benchmarks
-# or publish after the fact
+# or publish the latest benchmark JSON
 make publish-benchmarks
 ```
 
-Live dashboard: https://amperstrand.github.io/fips-lab/benchmarks/
+Results are published to Blossom + Nostr (kind 30078) with `PROJECT_TAG=fips-benchmark`. View them on the dashboard at [tests.tollgate.me](https://tests.tollgate.me/) — filter by `fips-benchmark` tag.
 
 ### Scenario results (legacy runner)
 
@@ -153,8 +153,17 @@ The legacy runner creates rich timestamped directories under `results/` with met
 
 ```bash
 make test-lab-2node-publish     # run and publish
-bash scripts/publish-report.sh results/<run-dir>  # publish existing results
+# or publish existing results
+python3 scripts/publish-results.py results/<run-dir> --project-tag fips-ble
 ```
+
+Scenario results are published with `PROJECT_TAG=fips-ble` and appear on [tests.tollgate.me](https://tests.tollgate.me/) under the `fips-ble` tag.
+
+### Publishing setup
+
+Both benchmark and scenario publishing use `scripts/publish-results.py`, which wraps `lib.result_publisher` (shared with physical-router-test-automation). Requires:
+- `.nsec` file in repo root (same nsec as TollGate/prta testing)
+- `nak` CLI installed (`curl -sL <nak-release-url> -o /usr/local/bin/nak && chmod +x $_`)
 
 ## Custom Drivers
 
@@ -248,8 +257,8 @@ make test-lab-2node-commit      run 2-node for a specific commit
 make test-campaign-ble          bidirectional campaign
 make test-campaign-ble-20min    extended campaign with publish
 
-make publish                    publish latest scenario results
-make publish-benchmarks         publish benchmark-matrix to gh-pages
+make publish                    publish latest scenario results to Blossom + Nostr
+make publish-benchmarks         publish benchmark-matrix to Blossom + Nostr
 make setup-218-phase2           deploy Phase 2 configs to 218
 make setup-218-phase2-dry-run   preview Phase 2 deployment
 make clean-results              remove results older than 30 days

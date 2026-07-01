@@ -103,7 +103,7 @@ pytest --lg-env=environment.yaml tests/ -v
 # Benchmarks only
 pytest --lg-env=environment.yaml tests/ -v -m benchmark
 
-# Run and auto-publish to gh-pages
+# Run and auto-publish to Blossom + Nostr
 pytest --lg-env=environment.yaml tests/test_benchmark.py --publish-benchmarks
 ```
 
@@ -122,7 +122,7 @@ make test-lab-2node-linux-init
 make test-campaign-ble
 ```
 
-Results are published to https://amperstrand.github.io/fips-lab/benchmarks/
+Results are published to Blossom + Nostr. View at [tests.tollgate.me](https://tests.tollgate.me/) — filter by `fips-benchmark` or `fips-ble` tag.
 
 See the fips-lab README for full documentation.
 
