@@ -1,0 +1,893 @@
+[    6003ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://192.168.1.1/favicon.ico:0
+[    6152ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/:0
+[    6597ms] RPCError: RPC call to uci/get failed with error -32002: Access denied
+  at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+    at ClassConstructor.raise (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:148:3)
+    at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+[   72285ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72285ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72285ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[   72286ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  101397ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  111586ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  117960ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  124181ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  143735ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  178116ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779123375916:0
+[  178117ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  181499ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://192.168.1.1/ubus/?1779123385916:0
+[  181499ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  186500ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://192.168.1.1/ubus/?1779123390917:0
+[  186500ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  191500ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://192.168.1.1/ubus/?1779123395917:0
+[  191500ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  197059ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://192.168.1.1/ubus/?1779123401472:0
+[  197060ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  201500ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ http://192.168.1.1/ubus/?1779123405917:0
+[  201500ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  226502ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[  251502ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[  276503ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  344182ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  358353ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  428111ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451300ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451300ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451300ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451300ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451300ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451300ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451300ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451301ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451301ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451301ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  451301ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/luci/admin/network/wireless:0
+[  593767ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/admin/network/network:0
+[  594141ms] RPCError: RPC call to uci/get failed with error -32002: Access denied
+  at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+    at ClassConstructor.raise (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:148:3)
+    at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+[  625656ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/:0
+[  625771ms] RPCError: RPC call to uci/get failed with error -32002: Access denied
+  at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+    at ClassConstructor.raise (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:148:3)
+    at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+[  852527ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124056906:0
+[  852528ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  857343ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124061728:0
+[  857343ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  884149ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[  906386ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[  912777ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779124115728:0
+[  912780ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  922841ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779124121728:0
+[  922843ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[  960310ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[  981410ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1005311ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779124190727:0
+[ 1005312ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1029649ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1036327ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779124236728:0
+[ 1036328ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1057504ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1061310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779124262727:0
+[ 1061311ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1084311ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779124267728:0
+[ 1084312ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1093741ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779124290128:0
+[ 1093744ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1119642ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1140323ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1150215ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779124347727:0
+[ 1150217ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1179323ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1208421ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1229310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779124420742:0
+[ 1229311ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1261324ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1286029ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1314327ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1340961ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779124530512:0
+[ 1340962ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1364112ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779124549726:0
+[ 1364113ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1386594ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1410323ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1433626ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1465310ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1487312ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779124670726:0
+[ 1487312ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1499704ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779124694726:0
+[ 1499704ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1517344ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779124711726:0
+[ 1517360ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1523310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124726726:0
+[ 1523310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1531311ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124734726:0
+[ 1531311ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1536310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124739725:0
+[ 1536310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1541310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124744726:0
+[ 1541311ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1547414ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124750830:0
+[ 1547414ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1552310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124755726:0
+[ 1552310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1557310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124760726:0
+[ 1557311ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1562324ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124765741:0
+[ 1562324ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1568310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124771726:0
+[ 1568310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1573309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124776726:0
+[ 1573310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1579379ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124782795:0
+[ 1579380ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1588326ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124791742:0
+[ 1588327ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1599309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124802725:0
+[ 1599310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1607599ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124811014:0
+[ 1607599ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1612309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124815725:0
+[ 1612310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1617325ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124820740:0
+[ 1617325ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1622309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124825725:0
+[ 1622309ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1629310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124832725:0
+[ 1629310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1634310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124837725:0
+[ 1634310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1639310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124842726:0
+[ 1639310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1650859ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124854274:0
+[ 1650860ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1655310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124858725:0
+[ 1655311ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1660310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124863725:0
+[ 1660310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1665324ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124868740:0
+[ 1665325ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1675310ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124878725:0
+[ 1675310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1689714ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124894082:0
+[ 1689715ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1695337ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124899725:0
+[ 1695338ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1700396ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124904724:0
+[ 1700396ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1705339ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124909725:0
+[ 1705339ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1710376ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124914726:0
+[ 1710376ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1720339ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124924725:0
+[ 1720339ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1729340ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124933725:0
+[ 1729341ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1740339ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124944725:0
+[ 1740340ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1752356ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124956741:0
+[ 1752357ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1757339ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124961725:0
+[ 1757340ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1762340ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124966725:0
+[ 1762341ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1770340ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124974725:0
+[ 1770340ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1781339ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124985725:0
+[ 1781340ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1788417ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124992802:0
+[ 1788417ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1794341ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779124998725:0
+[ 1794342ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1799340ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779125003725:0
+[ 1799340ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1804355ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779125008741:0
+[ 1804355ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1835712ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1835714ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125040131:0
+[ 1835714ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1843308ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125047725:0
+[ 1843309ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1857307ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125061724:0
+[ 1857308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1883321ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1908385ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 1918307ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125122724:0
+[ 1918307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1926308ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125130725:0
+[ 1926308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1931307ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125135724:0
+[ 1931307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1938309ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125140739:0
+[ 1938310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1941308ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125145724:0
+[ 1941308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1947831ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125152248:0
+[ 1947832ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1963308ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125156724:0
+[ 1963308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1966309ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125170725:0
+[ 1966309ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 1992320ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2011322ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125202739:0
+[ 2011323ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2016108ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125220525:0
+[ 2016109ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2027308ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125224723:0
+[ 2027308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2031307ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125235724:0
+[ 2031307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2036307ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125240724:0
+[ 2036307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2046338ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125245724:0
+[ 2046339ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2070030ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2072306ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125276724:0
+[ 2072307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2081308ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125285724:0
+[ 2081310ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2089307ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125293724:0
+[ 2089308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2100266ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125304683:0
+[ 2100267ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2106308ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125310724:0
+[ 2106308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2111306ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125315723:0
+[ 2111307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2116398ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125320815:0
+[ 2116399ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2124323ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125325723:0
+[ 2124324ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2147731ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2172320ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2197167ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2225970ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2254935ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2281320ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2305307ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125494063:0
+[ 2305307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2306321ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125510738:0
+[ 2306321ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2311306ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125515723:0
+[ 2311307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2316306ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125520723:0
+[ 2316307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2333321ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125525723:0
+[ 2333322ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2336321ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125540738:0
+[ 2336322ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2341330ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125545747:0
+[ 2341330ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2349751ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125554167:0
+[ 2349751ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2377233ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2405891ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2428247ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2429116ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125633533:0
+[ 2429117ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2439724ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779125637723:0
+[ 2439725ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2446307ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125650724:0
+[ 2446308ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2451305ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125655722:0
+[ 2451305ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2456321ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125660738:0
+[ 2456321ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2461306ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125665723:0
+[ 2461306ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2486582ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2488306ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125692723:0
+[ 2488306ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2498722ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125703139:0
+[ 2498722ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2503305ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125707722:0
+[ 2503305ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2510305ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125714722:0
+[ 2510306ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2535483ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2541305ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125744722:0
+[ 2541307ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2545305ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125749722:0
+[ 2545305ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2550305ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125754722:0
+[ 2550305ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2556319ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125760737:0
+[ 2556320ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2564453ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125768870:0
+[ 2564457ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2587432ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779125773742:0
+[ 2587436ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2610304ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2633319ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2655319ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2665305ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125861722:0
+[ 2665305ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2686320ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125871722:0
+[ 2686321ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2708679ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2709319ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125913736:0
+[ 2709319ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2714304ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125918721:0
+[ 2714305ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2732386ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125923745:0
+[ 2732386ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2742386ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125944206:0
+[ 2742387ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2763402ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125949803:0
+[ 2763403ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2766386ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779125970803:0
+[ 2766386ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2794411ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779125980818:0
+[ 2794412ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2814791ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126000803:0
+[ 2814791ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2820387ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126023804:0
+[ 2820388ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2827386ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126031803:0
+[ 2827386ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2833386ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126037804:0
+[ 2833387ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2838775ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126043191:0
+[ 2838775ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2851402ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126047805:0
+[ 2851403ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2871388ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126064804:0
+[ 2871389ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2894388ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126078804:0
+[ 2894388ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 2918389ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126104827:0
+[ 2918389ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2935389ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126125829:0
+[ 2935389ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2936402ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126140819:0
+[ 2936403ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2949389ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126146805:0
+[ 2949390ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2951388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126155805:0
+[ 2951388ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2956387ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126160804:0
+[ 2956387ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2966388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126170805:0
+[ 2966388ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2975415ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126177804:0
+[ 2975416ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 2996413ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126184155:0
+[ 2996414ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3000387ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126204804:0
+[ 3000387ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3005388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126209805:0
+[ 3005388ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3010388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126214805:0
+[ 3010389ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3015387ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126219805:0
+[ 3015388ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3040422ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3042389ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126246805:0
+[ 3042389ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3047388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126251805:0
+[ 3047388ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3072402ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3095403ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3100388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126304805:0
+[ 3100392ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3105388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126309805:0
+[ 3105394ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3125768ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126315805:0
+[ 3125768ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3129389ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126333805:0
+[ 3129401ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3134388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126338805:0
+[ 3134402ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3150404ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126344805:0
+[ 3150404ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3159719ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126364135:0
+[ 3159720ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3170430ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126374847:0
+[ 3170430ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3196666ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3223422ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3229427ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126433843:0
+[ 3229427ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3238425ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126442842:0
+[ 3238426ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3243786ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126448203:0
+[ 3243787ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3276675ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3279828ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126484244:0
+[ 3279828ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3284396ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126488806:0
+[ 3284425ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3327626ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3329429ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126533846:0
+[ 3329429ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3341427ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126545830:0
+[ 3341428ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3357428ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126561844:0
+[ 3357428ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3364413ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126568807:0
+[ 3364427ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3371390ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126575807:0
+[ 3371427ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3378427ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126581899:0
+[ 3378428ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3382837ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126587254:0
+[ 3382837ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3387428ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126591845:0
+[ 3387429ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3392390ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126596807:0
+[ 3392425ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3403643ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126603945:0
+[ 3403676ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3404428ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126608845:0
+[ 3404428ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3420420ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126624808:0
+[ 3420425ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3430390ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126634807:0
+[ 3430425ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3437181ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126641598:0
+[ 3437181ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3442391ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126646808:0
+[ 3442425ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3452483ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126655847:0
+[ 3452483ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3458401ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126662808:0
+[ 3458425ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3463412ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126667808:0
+[ 3463424ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3468426ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126672808:0
+[ 3468426ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3473390ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126677807:0
+[ 3473424ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3500429ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3505391ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126709808:0
+[ 3505425ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3510399ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126714808:0
+[ 3510426ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3517430ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126721846:0
+[ 3517430ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3522392ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126726808:0
+[ 3522417ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3528558ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126732145:0
+[ 3528576ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3536428ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126740845:0
+[ 3536429ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3544427ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126748809:0
+[ 3544429ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3553392ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126756847:0
+[ 3553426ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3560432ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126764847:0
+[ 3560439ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3567629ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126772045:0
+[ 3567629ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3596030ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3602730ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126804494:0
+[ 3602731ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3605027ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126809444:0
+[ 3605028ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3610428ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126814845:0
+[ 3610428ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3616829ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126821246:0
+[ 3616829ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3621392ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126825809:0
+[ 3621426ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3656426ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3666393ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126870809:0
+[ 3666426ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3672429ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126876844:0
+[ 3672429ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3679430ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126883846:0
+[ 3679431ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3687428ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126891812:0
+[ 3687430ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3692392ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126896809:0
+[ 3692426ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3702627ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126903799:0
+[ 3702664ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3704413ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126908795:0
+[ 3704414ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3713372ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126917788:0
+[ 3713405ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3723406ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126927823:0
+[ 3723407ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3731365ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126935782:0
+[ 3731400ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3736401ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126940786:0
+[ 3736402ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3742402ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126946819:0
+[ 3742403ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3747364ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126951780:0
+[ 3747399ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3774402ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3778649ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779126982819:0
+[ 3778650ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3786381ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126990780:0
+[ 3786399ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3791363ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779126995780:0
+[ 3791399ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3797157ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779127001574:0
+[ 3797157ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3822400ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3827400ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779127028780:0
+[ 3827400ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3831388ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779127035780:0
+[ 3831400ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3853401ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779127046780:0
+[ 3853402ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3883402ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3910800ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3932401ms] Error: XHR request timed out
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:63:20)
+[ 3936364ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779127139809:0
+[ 3936400ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3953447ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779127144780:0
+[ 3953450ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3965460ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779127162814:0
+[ 3965460ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3970348ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779127174172:0
+[ 3970355ms] Error: XHR request aborted by browser
+    at Object.handleReadyStateChange (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:64:20)
+[ 3976509ms] SessionError: Login session is expired
+  at notifySessionExpiry (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:188:464)
+  at async Promise.all (index 0)
+    at Object.raise (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:148:3)
+    at notifySessionExpiry (http://192.168.1.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:188:464)
+    at async Promise.all (index 0)

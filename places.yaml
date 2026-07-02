@@ -1,0 +1,16 @@
+linux-218:
+  acquired: null
+  acquired_resources: []
+  aliases: []
+  allowed: []
+  changed: 1779144888.873346
+  comment: Linux test host 218
+  created: 1779144869.44383
+  matches:
+  - cls: NetworkService
+    exporter: ubuntu-Legion-T5-26AMR5
+    group: linux-218
+    name: '*'
+    rename: null
+  reservation: null
+  tags: {}

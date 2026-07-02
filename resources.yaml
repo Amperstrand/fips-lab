@@ -1,0 +1,24 @@
+ubuntu-Legion-T5-26AMR5:
+  linux-218:
+    esp32-serial:
+      acquired: null
+      avail: true
+      cls: NetworkSerialPort
+      params:
+        extra:
+          path: /dev/ttyUSB0
+          proxy: ubuntu-Legion-T5-26AMR5
+          proxy_required: false
+        host: ubuntu-Legion-T5-26AMR5
+        port: null
+        speed: 115200
+    network:
+      acquired: null
+      avail: true
+      cls: NetworkService
+      params:
+        address: 192.168.13.218
+        extra:
+          proxy: ubuntu-Legion-T5-26AMR5
+          proxy_required: false
+        username: ubuntu

@@ -1,0 +1,9 @@
+[  935750ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/:0
+[ 1223811ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779127475640:0
+[ 1223873ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779127475744:0
+[ 1228898ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779127480795:0
+[ 1228942ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779127480840:0
+[ 1233772ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779127485640:0
+[ 1233805ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779127485705:0
+[ 1243120ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779127494524:0
+[ 1309770ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779127541735:0

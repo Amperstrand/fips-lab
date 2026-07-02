@@ -1,0 +1,5 @@
+[     333ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://ogads-pa.clients6.google.com/$rpc/google.internal.onegoogle.asyncdata.v1.AsyncDataService/GetAsyncData:0
+[    1307ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://play.google.com/log?format=json&hasfast=true:0
+[    3326ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://play.google.com/log?format=json&hasfast=true:0
+[    7595ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://play.google.com/log?format=json&hasfast=true:0
+[   15860ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://play.google.com/log?format=json&hasfast=true:0

@@ -1,0 +1,36 @@
+[   64897ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/:0
+[  479925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130336957:0
+[  484925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130341957:0
+[  489925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130346958:0
+[  494926ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130351958:0
+[  504927ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/ubus/?1779130356958:0
+[  505180ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.1/luci-static/resources/icons/vlan_disabled.png:0
+[  509925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/luci-static/resources/icons/vlan_disabled.png:0
+[  509925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130366957:0
+[  514925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/luci-static/resources/icons/vlan_disabled.png:0
+[  514925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130371957:0
+[  519924ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/luci-static/resources/icons/vlan_disabled.png:0
+[  519925ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130376957:0
+[  568427ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/:0
+[  729101ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779130586133:0
+[  798991ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/:0
+[  799844ms] RPCError: RPC call to uci/get failed with error -32002: Access denied
+  at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.075.80566~6efa8ae-0:11:3)
+    at ClassConstructor.raise (http://192.168.1.1/luci-static/resources/luci.js?v=26.075.80566~6efa8ae-0:148:3)
+    at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.075.80566~6efa8ae-0:11:3)
+[ 1083588ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.1.1/cgi-bin/luci/:0
+[ 1087344ms] RPCError: RPC call to uci/get failed with error -32002: Access denied
+  at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.075.80566~6efa8ae-1773711117:11:3)
+    at ClassConstructor.raise (http://192.168.1.1/luci-static/resources/luci.js?v=26.075.80566~6efa8ae-1773711117:148:3)
+    at ClassConstructor.handleCallReply (http://192.168.1.1/luci-static/resources/rpc.js?v=26.075.80566~6efa8ae-1773711117:11:3)
+[ 2100814ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779131950586:0
+[ 2100854ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779131957849:0
+[ 2108462ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779131960585:0
+[ 2109467ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://192.168.1.1/ubus/?1779131965497:0
+[ 2128341ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779131970603:0
+[ 2128343ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779131985375:0
+[ 2128966ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779131985616:0
+[ 2129746ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779131986000:0
+[ 2133618ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779131990618:0
+[ 2137413ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ http://192.168.1.1/ubus/?1779131990653:0
+[ 2158592ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ http://192.168.1.1/ubus/?1779132015625:0

@@ -1,0 +1,81 @@
+[    2669ms] [INFO] AST library loaded: 1.10.90 @ https://adsdk.microsoft.com/ast/ast.js:4
+[    3037ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://id.vg.no/v2/session?client_sdrn=sdrn%3Aspid.no%3Aclient%3A4ef1cfb0e962dd2e0d8d0000&redirect_uri=https%3A%2F%2Fwww.vg.no%2Fauth%2Fcallback&sdk_version=5.2.6&tabId=40980:0
+[    3323ms] [LOG] Messaging without detection successfully executed. @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    3538ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://session-service.payment.schibsted.no/user-context?client_sdrn=sdrn%3Aspid.no%3Aclient%3A4ef1cfb0e962dd2e0d8d0000&sdk_version=5.2.6:0
+[    3659ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://session-service.payment.schibsted.no/user-context?client_sdrn=sdrn%3Aspid.no%3Aclient%3A4ef1cfb0e962dd2e0d8d0000&sdk_version=5.2.6:0
+[    3698ms] [ERROR] SDKError: HasSession failed
+    at https://esm.schibsted.tech/@schibsted/account-sdk-browser@5.2.6/es2022/account-sdk-browser.mjs:5:1183
+    at async te (https://cdn.stream.schibsted.media/player/extras/latest/player.next.min.bundled-latest.js:1:56818) @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    4052ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://amd-ab.akamaized.net/ab/geoblocked-sweden/ping:0
+[    4057ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://ib.adnxs.com/:0
+[    4130ms] [WARNING] Deprecated method: getAdvertisingIdentifiers @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    4131ms] [WARNING] No Actor Builder found in event input or tracker builders. Please provide an Actor Builder to ensure the SDK resolves logged-in and logged-out scenarios correctly. @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    5654ms] [WARNING] setConsents is not allowed when autoCreateConsents is enabled @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    5656ms] [LOG] interaction complete @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    7375ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ https://adsdk.microsoft.com/ast/ast.js:4
+[    8188ms] [LOG] %c👋 Velkommen til Konsollens Gang! font-size: 35px; color: #ff0000; font-weight: bold; @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    8189ms] [LOG] %cLiker du å være i konsollen? Det gjør vi også. Kom og snakk med oss da vel?
+Join https://discord.gg/vgno. font-size: 18px @ https://esm.schibsted.tech/@sentry/core@10.53.1/es2022/build/esm/instrument/console.mjs:1
+[    8494ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ https://adsdk.microsoft.com/ast/ast.js:4
+[    8589ms] [WARNING] The googletag.pubads().definePassback function has been deprecated. The function may break in certain contexts, see https://developers.google.com/publisher-tag/guides/passback-tags#construct_passback_tags for how to correctly create a passback. @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202605120101/pubads_impl.js:18
+[    9028ms] [ERROR] Permissions policy violation: unload is not allowed in this document. @ https://www.googletagservices.com/dcm/impl_v106.js:125
+[    9141ms] [LOG] anx-mediation:  INIT -- @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[    9141ms] [LOG] anx-mediation:  NOBID 1195ms @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[    9141ms] [LOG] anx-mediation:  CONTINUE 1195ms @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[   10609ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[   11366ms] [INFO] AST library loaded: 1.10.90 @ https://adsdk.microsoft.com/ast/ast.js:4
+[   11555ms] [LOG] Messaging without detection successfully executed. @ https://cmp.vg.no/unified/wrapperMessagingWithoutDetection.js:0
+[   11561ms] [LOG] interaction complete @ https://cmp.vg.no/unified/wrapperMessagingWithoutDetection.js:0
+[   12163ms] [WARNING] Multiple browserTracingIntegration instances are not supported. @ https://esm.vg.no/@sentry/browser@9.17.0/es2022/browser.mjs:3
+[   12366ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://session-service.payment.schibsted.no/user-context?client_sdrn=sdrn%3Aspid.no%3Aclient%3A4ef1cfb0e962dd2e0d8d0000&sdk_version=5.2.6:0
+[   12578ms] [WARNING] [UserPermissions] Permissions not found @ https://esm.vg.no/@sentry/core@9.17.0/es2022/core.mjs:19
+[   12631ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://session-service.payment.schibsted.no/user-context?client_sdrn=sdrn%3Aspid.no%3Aclient%3A4ef1cfb0e962dd2e0d8d0000&sdk_version=5.2.6:0
+[   12636ms] [ERROR] Failed to load resource: the server responded with a status of 410 () @ https://user-permissions.privacy.schibsted.com/privacy/v2/anonymous/vg/user/sdrn:schibsted:environment:019e3c32-970e-7684-8cf5-d4ba8d76a29f/permissions:0
+[   12636ms] [WARNING] [UserPermissions] Failed to fetch permissions Error: HTTP error! status: 410
+    at Fn.fetchPermissions (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:1379) @ https://esm.vg.no/@sentry/core@9.17.0/es2022/core.mjs:19
+[   12640ms] [ERROR] Failed to load resource: the server responded with a status of 410 () @ https://user-permissions.privacy.schibsted.com/privacy/v2/anonymous/vg/user/sdrn:schibsted:environment:019e3c32-970e-7684-8cf5-d4ba8d76a29f/permissions:0
+[   12641ms] [WARNING] [UserPermissions] Failed to fetch permissions Error: HTTP error! status: 410
+    at Fn.fetchPermissions (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:1379)
+    at async Fn.fetchPermissionsWithTimeout (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:1582)
+    at async Fn.getPermissions (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:2531)
+    at async object (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:61204)
+    at async ie (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:11338)
+    at async Promise.all (index 4)
+    at async ie (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:11567)
+    at async Promise.all (index 0)
+    at async Y (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:11687)
+    at async Promise.all (index 0)
+    at async c.evaluateEventInputs (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:51345) @ https://esm.vg.no/@sentry/core@9.17.0/es2022/core.mjs:19
+[   12641ms] [WARNING] [UserPermissions] Permissions not found @ https://esm.vg.no/@sentry/core@9.17.0/es2022/core.mjs:19
+[   13070ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://ib.adnxs.com/:0
+[   13748ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ https://adsdk.microsoft.com/ast/ast.js:4
+[   13812ms] [WARNING] The googletag.pubads().definePassback function has been deprecated. The function may break in certain contexts, see https://developers.google.com/publisher-tag/guides/passback-tags#construct_passback_tags for how to correctly create a passback. @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202605120101/pubads_impl.js:18
+[   14134ms] [LOG] anx-mediation:  INIT -- @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[   14134ms] [LOG] anx-mediation:  NOBID 347ms @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[   14135ms] [LOG] anx-mediation:  CONTINUE 347ms @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[   14551ms] [ERROR] Framing 'https://dressmann.com/' violates the following Content Security Policy directive: "frame-ancestors 'self' https://*.varnerbf.com". The request has been blocked.
+ @ :0
+[   17672ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ https://adsdk.microsoft.com/ast/ast.js:4
+[   14551ms] [ERROR] Framing 'https://dressmann.com/' violates the following Content Security Policy directive: "frame-ancestors 'self' https://*.varnerbf.com". The request has been blocked.
+ @ :0
+[   17724ms] [WARNING] The googletag.pubads().definePassback function has been deprecated. The function may break in certain contexts, see https://developers.google.com/publisher-tag/guides/passback-tags#construct_passback_tags for how to correctly create a passback. @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202605120101/pubads_impl.js:18
+[   18140ms] [LOG] anx-mediation:  INIT -- @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[   18140ms] [LOG] anx-mediation:  NOBID 423ms @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[   18140ms] [LOG] anx-mediation:  CONTINUE 423ms @ https://acdn.adnxs-simple.com/ast/mediation/0.66.0/mediation.js:1
+[   18794ms] [ERROR] Permissions policy violation: unload is not allowed in this document. @ https://cdn.lamp.avct.cloud/attn.js?aid=68b966ad49519736035dfdea&mid=69eb2d9586c3117b6ba11675&mt=video&customModel={{device}}SeenThis&duration=15000:0
+[   18820ms] [ERROR] Permissions policy violation: unload is not allowed in this document. @ https://video.seenthis.se/v2/player/118/player.js:0
+[   18821ms] [ERROR] Permissions policy violation: unload is not allowed in this document. @ https://video.seenthis.se/v2/player/118/player.js:0
+[   18902ms] [ERROR] Failed to load resource: the server responded with a status of 410 () @ https://user-permissions.privacy.schibsted.com/privacy/v2/anonymous/vg/user/sdrn:schibsted:environment:019e3c32-970e-7684-8cf5-d4ba8d76a29f/permissions:0
+[   18902ms] [WARNING] [UserPermissions] Failed to fetch permissions Error: HTTP error! status: 410
+    at Fn.fetchPermissions (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:1379)
+    at async Fn.fetchPermissionsWithTimeout (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:1582)
+    at async Fn.getPermissions (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:2531)
+    at async object (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:61204)
+    at async ie (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:11338)
+    at async Promise.all (index 4)
+    at async ie (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:11567)
+    at async Promise.all (index 0)
+    at async Y (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:11687)
+    at async Promise.all (index 0)
+    at async c.evaluateEventInputs (https://www.vg.no/vgc/cdn/vgno/assets/production/_astro/PulseStore.B0JpZsAH.js:1:51345) @ https://esm.vg.no/@sentry/core@9.17.0/es2022/core.mjs:19
+[   18902ms] [WARNING] [UserPermissions] Permissions not found @ https://esm.vg.no/@sentry/core@9.17.0/es2022/core.mjs:19

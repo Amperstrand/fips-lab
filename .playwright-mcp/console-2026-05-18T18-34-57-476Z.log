@@ -1,0 +1,4 @@
+[  144718ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.1.1/cgi-bin/dispatcher.cgi?cmd=0:0
+[  223134ms] NetworkError: Failed to execute 'send' on 'XMLHttpRequest': Failed to load 'http://192.168.1.1/cgi-bin/dispatcher.cgi?session_del=1&dummy=1779129520608': Synchronous XHR in page dismissal. See https://www.chromestatus.com/feature/4664843055398912 for more details.
+    at httpGet (http://192.168.1.1/cgi-bin/dispatcher.cgi?cmd=0:19:13)
+    at window.onunload (http://192.168.1.1/cgi-bin/dispatcher.cgi?cmd=0:89:106)

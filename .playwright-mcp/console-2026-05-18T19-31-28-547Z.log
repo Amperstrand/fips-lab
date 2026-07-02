@@ -1,0 +1,2 @@
+[   11340ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://tests.tollgate.me/favicon.ico:0
+[   33967ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://tests.tollgate.me/favicon.ico:0

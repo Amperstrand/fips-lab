@@ -1,0 +1,10 @@
+[   25358ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://192.168.13.1/favicon.ico:0
+[   25843ms] [ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://192.168.13.1/cgi-bin/luci/:0
+[   26513ms] RPCError: RPC call to uci/get failed with error -32002: Access denied
+  at ClassConstructor.handleCallReply (http://192.168.13.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+    at ClassConstructor.raise (http://192.168.13.1/luci-static/resources/luci.js?v=26.133.20346~e9ebca7-1778712129:148:3)
+    at ClassConstructor.handleCallReply (http://192.168.13.1/luci-static/resources/rpc.js?v=26.133.20346~e9ebca7-1778712129:11:3)
+[  124681ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.13.1/cgi-bin/luci/admin/system/admin:0
+[  124681ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.13.1/cgi-bin/luci/admin/system/admin:0
+[  522351ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.13.1/cgi-bin/luci/admin/system/admin/password:0
+[  522351ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://192.168.13.1/cgi-bin/luci/admin/system/admin/password:0
