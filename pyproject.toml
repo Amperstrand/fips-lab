@@ -19,6 +19,7 @@ fips-lab = "lab.__main__:main"
 markers = [
   "benchmark: BLE performance benchmark tests",
 ]
+junit_family = "xunit2"
 
 [tool.ruff]
 line-length = 100

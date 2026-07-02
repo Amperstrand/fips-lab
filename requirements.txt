@@ -6,3 +6,5 @@ pyserial>=3.5
 cryptography>=42.0
 attrs>=23.0
 nostr-publish>=0.1.0
+pytest-html>=4.0
+pytest-timeout>=2.0

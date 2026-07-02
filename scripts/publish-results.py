@@ -90,7 +90,24 @@ def main() -> int:
         print(f"[DRY RUN] Would run: {' '.join(cmd)}")
 
     result = subprocess.run(cmd, env=env, cwd=str(repo_root))
-    return result.returncode
+    if result.returncode != 0:
+        return result.returncode
+
+    if not args.dry_run:
+        import time
+        print("Verifying publish (waiting 3s for relay propagation)...")
+        time.sleep(3)
+        nak_check = subprocess.run(
+            ["nak", "req", "-k", "30078", "-l", "1", "-t", f"t={args.project_tag}",
+             "wss://relay.cashu.email"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if nak_check.returncode == 0 and nak_check.stdout.strip():
+            print("  Publish verified: kind 30078 event found on relay")
+        else:
+            print("  WARNING: Could not verify event on relay (may need more propagation time)")
+
+    return 0
 
 
 def _stage_benchmark_json(json_path: Path, repo_root: Path) -> Path:
