@@ -62,7 +62,7 @@ def _wait_for_peer(target, npub: str, timeout: int) -> bool:
 
 @pytest.fixture(scope="session")
 def mac_peer_ready(env):
-    timeout = env.config.getoption("--wait-peers-timeout", default=120)
+    timeout = env.config.get_option("--wait-peers-timeout", default=120)
     linux = env.get_target("ai-legion-small")
     if not _wait_for_peer(linux, MAC_NPUB, timeout):
         pytest.skip(f"Mac peer not connected after {timeout}s")
@@ -70,7 +70,7 @@ def mac_peer_ready(env):
 
 @pytest.fixture(scope="session")
 def linux_peer_ready(env):
-    timeout = env.config.getoption("--wait-peers-timeout", default=120)
+    timeout = env.config.get_option("--wait-peers-timeout", default=120)
     mac = env.get_target("macbook-local")
     if not _wait_for_peer(mac, LINUX_NPUB, timeout):
         pytest.skip(f"Linux peer not connected after {timeout}s")
@@ -78,7 +78,7 @@ def linux_peer_ready(env):
 
 @pytest.fixture(scope="session")
 def esp32_peer_ready(env):
-    timeout = env.config.getoption("--wait-peers-timeout", default=120)
+    timeout = env.config.get_option("--wait-peers-timeout", default=120)
     linux = env.get_target("ai-legion-small")
     if not _wait_for_peer(linux, ESP32_NPUB, timeout):
         pytest.skip(f"ESP32 peer not connected after {timeout}s")
@@ -151,7 +151,7 @@ def benchmark_results(request):
             fh,
             indent=2,
         )
-    if request.config.getoption("--publish-benchmarks", default=False):
+    if request.config.get_option("--publish-benchmarks", default=False):
         script = repo_dir / "scripts" / "publish-results.py"
         if script.exists():
             env = os.environ.copy()
