@@ -11,10 +11,10 @@ targets:
           sudo: true
       - FipsStrategy: {}
 
-  linux-218:
+  ai-legion-small:
     resources:
       - NetworkService:
-          address: "218"
+          address: "ai-legion-small"
           username: ubuntu
     drivers:
       - SSHDriver: {}
@@ -26,17 +26,22 @@ targets:
       - FipsctlDriver:
           binary: /home/ubuntu/src/fips/target/release/fipsctl
           sudo: true
+      - BLEScanDriver:
+          adapter: hci0
       - FipsStrategy: {}
 
   esp32-d0wd-01:
     resources:
       - NetworkService:
-          address: "218"
+          address: "ai-legion"
           username: ubuntu
     drivers:
       - SSHDriver: {}
       - EspFlashDriver:
-          tool: esptool.py
+          tool: esptool
           chip: esp32
           serial_port: /dev/ttyUSB0
           baud: 921600
+      - EspSerialDriver:
+          serial_port: /dev/ttyUSB0
+          baud: 115200

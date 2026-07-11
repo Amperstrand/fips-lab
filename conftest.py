@@ -63,7 +63,7 @@ def _wait_for_peer(target, npub: str, timeout: int) -> bool:
 @pytest.fixture(scope="session")
 def mac_peer_ready(env):
     timeout = env.config.getoption("--wait-peers-timeout", default=120)
-    linux = env.get_target("linux-218")
+    linux = env.get_target("ai-legion-small")
     if not _wait_for_peer(linux, MAC_NPUB, timeout):
         pytest.skip(f"Mac peer not connected after {timeout}s")
 
@@ -79,7 +79,7 @@ def linux_peer_ready(env):
 @pytest.fixture(scope="session")
 def esp32_peer_ready(env):
     timeout = env.config.getoption("--wait-peers-timeout", default=120)
-    linux = env.get_target("linux-218")
+    linux = env.get_target("ai-legion-small")
     if not _wait_for_peer(linux, ESP32_NPUB, timeout):
         pytest.skip(f"ESP32 peer not connected after {timeout}s")
 
@@ -115,7 +115,7 @@ def with_esp32_peer(linux_target, esp32_peer_ready):
 
 @pytest.fixture
 def linux_target(env):
-    return env.get_target("linux-218")
+    return env.get_target("ai-legion-small")
 
 
 @pytest.fixture
