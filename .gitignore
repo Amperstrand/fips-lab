@@ -6,3 +6,4 @@ inventory/lab.yaml
 results/
 artifacts/
 tshark-raw/
+.nsec
