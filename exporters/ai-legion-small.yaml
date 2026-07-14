@@ -1,0 +1,13 @@
+coordinator: "localhost:20408"
+hostname: ai-legion-small
+resources:
+  fips-daemon:
+    NetworkService:
+      address: localhost
+      username: ubuntu
+  esp8266:
+    USBSerialPort:
+      port: /dev/ttyUSB0
+      match:
+        ID_VENDOR_ID: "1a86"
+        ID_MODEL: "7523"

@@ -1,0 +1,9 @@
+coordinator: "192.168.13.221:20408"
+hostname: ai-legion
+resources:
+  esp32-d0wd:
+    USBSerialPort:
+      port: /dev/ttyUSB0
+      match:
+        ID_VENDOR_ID: "10c4"
+        ID_MODEL: "ea60"

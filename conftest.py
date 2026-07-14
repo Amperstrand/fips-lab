@@ -161,3 +161,50 @@ def benchmark_results(request):
                 check=False,
                 env=env,
             )
+
+
+# ─── Mode-agnostic device fixtures (labgrid or SSH fallback) ───────────────
+
+def _try_labgrid(request, target_name, driver_name):
+    """Try to get a labgrid driver. Returns None if labgrid unavailable."""
+    try:
+        env = request.getfixturevalue("env")
+        if not env or not getattr(env, "config", None):
+            return None
+        target = env.get_target(target_name)
+        if not target:
+            return None
+        driver = target.get_driver(driver_name)
+        target.activate(driver)
+        return driver
+    except Exception:
+        return None
+
+
+@pytest.fixture(scope="module")
+def esp32(request):
+    """ESP32 serial interface — labgrid driver or SSH fallback.
+
+    With labgrid:  pytest --lg-env=environment.yaml tests/test_esp32_l2cap.py
+    Without:       pytest tests/test_esp32_l2cap.py
+
+    Interface: reset_and_capture(duration), show_stats(), read(duration), send_command(cmd)
+    """
+    driver = _try_labgrid(request, "esp32-d0wd-01", "EspSerialDriver")
+    if driver:
+        return driver
+    from fips_lab.ssh_adapters import SSHEsp32Adapter
+    return SSHEsp32Adapter(host="ai-legion", serial_port="/dev/ttyUSB0", baud=115200)
+
+
+@pytest.fixture(scope="module")
+def fips(request):
+    """FIPS daemon control — labgrid driver or SSH fallback.
+
+    Interface: restart(), status(), start(), stop()
+    """
+    driver = _try_labgrid(request, "ai-legion-small", "FipsServiceDriver")
+    if driver:
+        return driver
+    from fips_lab.ssh_adapters import SSHFipsAdapter
+    return SSHFipsAdapter(host="ai-legion-small", service_name="fips", ble_adapter="hci0")
