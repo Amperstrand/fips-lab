@@ -12,34 +12,50 @@ from labgrid.protocol.commandprotocol import CommandProtocol
 class EspFlashDriver(Driver):
     """Flash firmware images to ESP32-family microcontrollers.
 
-    Uses ``esptool.py`` over a serial port, typically reached via an
-    SSH-bound shell driver (the ESP32 is connected to a remote host).
+    Handles ELF-to-binary conversion and correct partition offset.
+    Uses esptool over SSH to the host with the USB-serial connection.
     """
 
     bindings = {"shell": "CommandProtocol"}
 
     chip = attr.ib(validator=attr.validators.instance_of(str))
     serial_port = attr.ib(validator=attr.validators.instance_of(str))
-    tool = attr.ib(
-        default="esptool.py",
-        validator=attr.validators.instance_of(str),
-    )
-    baud = attr.ib(
-        default=921600,
-        validator=attr.validators.instance_of(int),
-    )
+    tool = attr.ib(default="esptool", validator=attr.validators.instance_of(str))
+    baud = attr.ib(default=460800, validator=attr.validators.instance_of(int))
+    flash_addr = attr.ib(default="0x10000", validator=attr.validators.instance_of(str))
 
     @Driver.check_active
     def flash(self, firmware_path: str):
-        """Write *firmware_path* to the ESP32 at address 0x0.
+        """Write firmware to the ESP32.
 
-        Assumes the firmware file is already present on the remote host.
+        Args:
+            firmware_path: Path to ELF or binary on the remote host.
+                          ELF files are auto-converted via elf2image.
         """
+        if firmware_path.endswith(".elf") or "." not in firmware_path.rsplit("/", 1)[-1]:
+            binary_path = "/tmp/fips-flash.bin"
+            convert_cmd = (
+                f"sudo {self.tool} --chip {self.chip} "
+                f"elf2image {firmware_path} --output {binary_path}"
+            )
+            self.shell.run_check(convert_cmd)
+            flash_path = binary_path
+        else:
+            flash_path = firmware_path
+
         cmd = (
             f"sudo {self.tool}"
             f" --chip {self.chip}"
             f" --port {self.serial_port}"
             f" --baud {self.baud}"
-            f" write_flash 0x0 {firmware_path}"
+            f" --before default-reset"
+            f" write-flash {self.flash_addr} {flash_path}"
         )
         return self.shell.run_check(cmd)
+
+    @Driver.check_active
+    def erase_flash(self):
+        """Erase the entire flash chip."""
+        return self.shell.run_check(
+            f"sudo {self.tool} --chip {self.chip} --port {self.serial_port} erase-flash"
+        )

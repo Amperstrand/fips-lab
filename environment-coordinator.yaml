@@ -1,0 +1,40 @@
+# Labgrid coordinator-based environment.
+# Requires: labgrid-coordinator running on ai-legion-small:20408
+#           exporters deployed on ai-legion + ai-legion-small
+#           places created via labgrid-client
+#
+# Usage: pytest --lg-env=environment-coordinator.yaml tests/
+
+targets:
+  esp32-d0wd:
+    resources:
+      - RemotePlace:
+          name: esp32-d0wd
+    drivers:
+      - SerialDriver: {}
+      - EspFlashDriver:
+          chip: esp32
+          serial_port: /dev/ttyUSB0
+          tool: esptool
+          baud: 460800
+      - EspSerialDriver:
+          serial_port: /dev/ttyUSB0
+          baud: 115200
+
+  fips-daemon:
+    resources:
+      - RemotePlace:
+          name: fips-daemon
+    drivers:
+      - SSHDriver: {}
+      - FipsServiceDriver:
+          service_kind: systemd
+          service_name: fips
+          config_path: /etc/fips/fips.yaml
+          ble_adapter: hci0
+      - FipsctlDriver:
+          binary: /home/ubuntu/src/fips/target/release/fipsctl
+          sudo: true
+      - BLEScanDriver:
+          adapter: hci0
+      - FipsStrategy: {}

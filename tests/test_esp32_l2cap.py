@@ -29,6 +29,10 @@ def fips_running(fips):
     yield
 
 
+@pytest.mark.smoke
+@pytest.mark.hardware
+@pytest.mark.smoke
+@pytest.mark.hardware
 class TestHandshake:
 
     def test_handshake_completes(self, esp32):
@@ -42,6 +46,8 @@ class TestHandshake:
         assert "InvalidMessage" not in output, "Noise pattern mismatch"
 
 
+@pytest.mark.heartbeat
+@pytest.mark.hardware
 class TestHeartbeats:
 
     def test_heartbeats_flow(self, esp32):
@@ -60,6 +66,8 @@ class TestHeartbeats:
         )
 
 
+@pytest.mark.recovery
+@pytest.mark.hardware
 class TestFipsRestartRecovery:
 
     def test_reconnect_after_restart(self, esp32, fips):
@@ -93,6 +101,8 @@ class TestFipsRestartRecovery:
         assert hb_after > hb_before, "Heartbeats did not resume after restart"
 
 
+@pytest.mark.stability
+@pytest.mark.hardware
 class TestStability:
 
     @pytest.mark.slow
