@@ -208,3 +208,17 @@ def fips(request):
         return driver
     from fips_lab.ssh_adapters import SSHFipsAdapter
     return SSHFipsAdapter(host="ai-legion-small", service_name="fips", ble_adapter="hci0")
+
+
+# ─── Firmware build fixture ─────────────────────────────────────────────────
+
+
+@pytest.fixture(scope="module")
+def firmware_builder(request):
+    """Firmware builder — labgrid SSHDriver or SSH adapter."""
+    driver = _try_labgrid(request, "ai-legion-small", "SSHDriver")
+    if driver:
+        # TODO: wrap labgrid SSHDriver into builder interface
+        pass
+    from fips_lab.ssh_adapters import SSHFirmwareBuilder
+    return SSHFirmwareBuilder()
