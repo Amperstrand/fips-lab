@@ -7,3 +7,4 @@ results/
 artifacts/
 tshark-raw/
 .nsec
+*.local
