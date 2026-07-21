@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import struct
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -127,6 +128,47 @@ class DecryptedFrame:
     sent: bool = False
     raw_header: bytes = b""   # 16-byte outer FMP header (AAD) for pcapng reconstruction
     plaintext: bytes = b""    # decrypted inner header + message body
+
+
+@dataclass
+class FailedFrame:
+    """Metadata for a frame that failed decryption with all keys."""
+    frame_num: int
+    timestamp_us: int
+    conn_handle: int
+    direction: str  # "TX" or "RX"
+    data_len: int
+    payload_preview: str  # first 16 bytes as hex
+
+
+@dataclass
+class L2CAPFrame:
+    """L2CAP frame with metadata for tracking."""
+    data: bytes
+    sent: bool
+    timestamp_us: int
+    conn_handle: int
+    frame_idx: int  # Index in the original ACL packet stream
+
+
+@dataclass
+class FipsL2CAPFrame:
+    """FIPS L2CAP frame with metadata for tracking."""
+    payload: bytes
+    sent: bool
+    timestamp_us: int
+    conn_handle: int
+    frame_idx: int
+
+
+@dataclass
+class FmpFrameWithMetadata:
+    """FMP frame with metadata for tracking failures."""
+    fmp_frame: FmpFrame
+    sent: bool
+    timestamp_us: int
+    conn_handle: int
+    frame_idx: int
 
 
 @dataclass
@@ -262,17 +304,22 @@ def _monitor_type_byte(flags: int) -> int | None:
 # HCI ACL Reassembly
 # ============================================================================
 
-def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bool]]:
+def reassemble_acl_packets(
+    records: list[BtsnoopRecord],
+) -> list[L2CAPFrame]:
     """Reassemble HCI ACL continuation fragments into complete L2CAP frames.
 
     Expects data to start with HCI type byte (0x02 for ACL).
     For monitor mode (2001), the type byte is prepended during parsing.
     Accepts PB=0 (first) and PB=2 (flushable first) as start indicators.
 
-    Returns list of (data, sent) tuples for each complete reassembled frame.
+    Returns list of L2CAPFrame objects with metadata (data, sent, timestamp_us, conn_handle).
     """
-    buffers: dict[int, bytearray] = {}
-    results: list[tuple[bytes, bool]] = []
+    buffers: dict[int, bytearray] = []
+    results: list[L2CAPFrame] = []
+    frame_idx = 0
+
+    handle_record_info: dict[int, dict[str, Any]] = {}
 
     for record in records:
         data = record.data
@@ -293,6 +340,11 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
         pb_flags = (acl_header >> 12) & 0x03
 
         payload = data[5:5 + acl_len]
+
+        handle_record_info[handle] = {
+            "timestamp_us": record.timestamp_us,
+            "sent": record.sent,
+        }
 
         if pb_flags in (PB_FIRST, 0x02):
             if handle in buffers and len(buffers[handle]) > 0:
@@ -325,7 +377,16 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
             del buf[:total_frame_len]
             if not buf:
                 del buffers[handle]
-            results.append((frame, record.sent))
+
+            info = handle_record_info.get(handle, {})
+            results.append(L2CAPFrame(
+                data=frame,
+                sent=record.sent,
+                timestamp_us=info.get("timestamp_us", 0),
+                conn_handle=handle,
+                frame_idx=frame_idx,
+            ))
+            frame_idx += 1
 
     return results
 
@@ -335,8 +396,8 @@ def reassemble_acl_packets(records: list[BtsnoopRecord]) -> list[tuple[bytes, bo
 # ============================================================================
 
 def extract_fips_l2cap_frames(
-    frames: list[tuple[bytes, bool]],
-) -> list[tuple[bytes, bool]]:
+    frames: list[L2CAPFrame],
+) -> list[FipsL2CAPFrame]:
     """Extract L2CAP frames carrying FIPS traffic.
 
     Strategy:
@@ -351,10 +412,11 @@ def extract_fips_l2cap_frames(
     ident_to_scid: dict[int, int] = {}
 
     fips_cids: set[int] = set()
-    fips_frames: list[tuple[bytes, bool]] = []
-    all_dynamic: list[tuple[bytes, bool, int]] = []
+    fips_frames: list[FipsL2CAPFrame] = []
+    all_dynamic: list[tuple[bytes, bool, int, int, int]] = []
 
-    for frame_data, sent in frames:
+    for l2cap_frame in frames:
+        frame_data = l2cap_frame.data
         if len(frame_data) < 4:
             continue
 
@@ -369,29 +431,41 @@ def extract_fips_l2cap_frames(
         if cid >= L2CAP_DYNAMIC_CID_MIN:
             conn = active.get(cid)
             if conn is not None and conn.psm == FIPS_L2CAP_PSM:
-                fips_frames.append((payload, sent))
+                fips_frames.append(FipsL2CAPFrame(
+                    payload=payload,
+                    sent=l2cap_frame.sent,
+                    timestamp_us=l2cap_frame.timestamp_us,
+                    conn_handle=l2cap_frame.conn_handle,
+                    frame_idx=l2cap_frame.frame_idx,
+                ))
                 fips_cids.add(cid)
             else:
-                all_dynamic.append((payload, sent, cid))
+                all_dynamic.append((payload, l2cap_frame.sent, l2cap_frame.timestamp_us,
+                                   l2cap_frame.conn_handle, l2cap_frame.frame_idx))
 
     if fips_frames:
         return fips_frames
 
-    # Fallback: content-based FMP detection on unresolved dynamic CIDs
     candidate_cids = _detect_fips_cids(all_dynamic)
     if candidate_cids:
-        return [(payload, sent) for payload, sent, cid in all_dynamic if cid in candidate_cids]
+        return [FipsL2CAPFrame(
+            payload=payload,
+            sent=sent,
+            timestamp_us=ts_us,
+            conn_handle=handle,
+            frame_idx=idx,
+        ) for payload, sent, ts_us, handle, idx in all_dynamic if handle in candidate_cids]
 
     return []
 
 
 def _detect_fips_cids(
-    frames: list[tuple[bytes, bool, int]],
+    frames: list[tuple[bytes, bool, int, int, int]],
 ) -> set[int]:
     """Identify CIDs carrying FIPS traffic by probing payloads for valid FMP frames."""
     cid_fmp_hits: dict[int, int] = {}
 
-    for payload, _sent, cid in frames:
+    for payload, _sent, _ts_us, cid, _idx in frames:
         if len(payload) < 2:
             continue
         sdu_len = struct.unpack("<H", payload[0:2])[0]
@@ -471,8 +545,8 @@ def _process_signalling(
 # ============================================================================
 
 def parse_fmp_frames(
-    l2cap_payloads: list[tuple[bytes, bool]],
-) -> list[tuple[FmpFrame, bool]]:
+    l2cap_payloads: list[FipsL2CAPFrame],
+) -> list[FmpFrameWithMetadata]:
     """Parse FMP frames from L2CAP CoC SDU payloads.
 
     L2CAP CoC SDU format (as captured by btmon on Linux):
@@ -482,9 +556,11 @@ def parse_fmp_frames(
     Each fmp_data is an FMP packet with common prefix:
       [ver(4bits)+phase(4bits)][flags:1][payload_len:2 LE]
     """
-    frames: list[tuple[FmpFrame, bool]] = []
+    frames: list[FmpFrameWithMetadata] = []
 
-    for payload, sent in l2cap_payloads:
+    for l2cap_frame in l2cap_payloads:
+        payload = l2cap_frame.payload
+        sent = l2cap_frame.sent
         if len(payload) < 2:
             continue
 
@@ -511,13 +587,19 @@ def parse_fmp_frames(
             if version != FMP_VERSION:
                 continue
 
-            frames.append((FmpFrame(
-                phase=phase,
-                version=version,
-                flags=flags,
-                payload_len=payload_len,
-                raw=fmp_data,
-            ), sent))
+            frames.append(FmpFrameWithMetadata(
+                fmp_frame=FmpFrame(
+                    phase=phase,
+                    version=version,
+                    flags=flags,
+                    payload_len=payload_len,
+                    raw=fmp_data,
+                ),
+                sent=sent,
+                timestamp_us=l2cap_frame.timestamp_us,
+                conn_handle=l2cap_frame.conn_handle,
+                frame_idx=l2cap_frame.frame_idx,
+            ))
 
     return frames
 
@@ -993,12 +1075,19 @@ def _write_markdown(summary: DecryptionSummary, path: Path) -> None:
 # Public API
 # ============================================================================
 
-def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
+def decrypt_btsnoop_capture(
+    run_dir: Path,
+    debug_failures: bool = False,
+) -> DecryptionSummary | None:
     """Decrypt btsnoop capture using keylog keys from the run directory.
 
     Looks for btmon.btsnoop and keylog-*.txt files in run_dir.
     Writes decryption-summary.json and decryption-summary.md.
     Returns the summary, or None if no capture/keylog files found.
+
+    Args:
+        run_dir: Directory containing btmon.btsnoop and keylog-*.txt files
+        debug_failures: If True, print details for each frame that fails decryption
     """
     run_dir = Path(run_dir)
 
@@ -1043,18 +1132,37 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
     failed_count = 0
     total_decrypted_bytes = 0
     failed_frame_details: list[dict[str, Any]] = []
+    failed_frames: list[FailedFrame] = []
 
-    for fmp, sent in fmp_frames:
+    for fmp_with_meta in fmp_frames:
+        fmp = fmp_with_meta.fmp_frame
         if fmp.phase != PHASE_ESTABLISHED:
             continue
 
         result = _decrypt_established_frame(fmp.raw, keys)
         if result is not None:
-            result.sent = sent
+            result.sent = fmp_with_meta.sent
             decrypted.append(result)
             total_decrypted_bytes += result.plaintext_len
         else:
             failed_count += 1
+            direction = "TX" if fmp_with_meta.sent else "RX"
+            payload_preview = fmp.raw[16:32].hex()[:32] if len(fmp.raw) >= 32 else fmp.raw[16:].hex()
+            failed_frames.append(FailedFrame(
+                frame_num=fmp_with_meta.frame_idx,
+                timestamp_us=fmp_with_meta.timestamp_us,
+                conn_handle=fmp_with_meta.conn_handle,
+                direction=direction,
+                data_len=len(fmp.raw),
+                payload_preview=payload_preview,
+            ))
+
+            if debug_failures:
+                ts_sec = fmp_with_meta.timestamp_us / 1_000_000.0
+                print(f"[FAIL] frame #{fmp_with_meta.frame_idx} ts={ts_sec:.6f} "
+                      f"handle=0x{fmp_with_meta.conn_handle:04x} dir={direction} "
+                      f"len={len(fmp.raw)} payload={payload_preview}")
+
             if len(fmp.raw) >= 16:
                 receiver_idx = struct.unpack("<I", fmp.raw[4:8])[0]
                 counter = struct.unpack("<Q", fmp.raw[8:16])[0]
@@ -1062,11 +1170,39 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
                     "receiver_idx": f"0x{receiver_idx:08x}",
                     "counter": counter,
                     "frame_size": len(fmp.raw),
-                    "direction": "sent" if sent else "recv",
+                    "direction": direction.lower(),
                 })
 
     log.info("btsnoop: %d/%d decrypted (%d failed)",
              len(decrypted), len(decrypted) + failed_count, failed_count)
+
+    if failed_count > 0:
+        total_established = len([f for f in fmp_frames if f.fmp_frame.phase == PHASE_ESTABLISHED])
+        print(f"\n=== Failed frame summary ===")
+        print(f"Total failed: {failed_count} / {total_established} "
+              f"({(failed_count / total_established * 100):.2f}%)" if total_established > 0 else
+              f"Total failed: {failed_count}")
+
+        failures_by_handle: dict[int, list[FailedFrame]] = {}
+        for ff in failed_frames:
+            failures_by_handle.setdefault(ff.conn_handle, []).append(ff)
+
+        if failures_by_handle:
+            print("\nBy connection handle:")
+            for handle, frames in sorted(failures_by_handle.items()):
+                total_for_handle = len([f for f in fmp_frames if f.conn_handle == handle
+                                       and f.fmp_frame.phase == PHASE_ESTABLISHED])
+                pct = (len(frames) / total_for_handle * 100) if total_for_handle > 0 else 0
+                print(f"  0x{handle:04x}: {len(frames)} failures ({pct:.2f}%)")
+
+        tx_failures = sum(1 for f in failed_frames if f.direction == "TX")
+        rx_failures = sum(1 for f in failed_frames if f.direction == "RX")
+        print(f"\nBy direction:")
+        print(f"  TX: {tx_failures}, RX: {rx_failures}")
+
+        if failed_frames:
+            first_5 = [f"#{ff.frame_num}" for ff in failed_frames[:5]]
+            print(f"\nFirst 5 failed frames: {', '.join(first_5)}")
 
     if decrypted:
         _write_decrypted_pcapng(decrypted, run_dir)
@@ -1077,7 +1213,7 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
         total_records=len(records),
         acl_packets=len(acl_frames),
         fips_frames=len(fips_frames),
-        fmp_frames_parsed=fmp_frames,
+        fmp_frames_parsed=[(f.fmp_frame, f.sent) for f in fmp_frames],
         decrypted=decrypted,
         failed_count=failed_count,
         failed_frame_details=failed_frame_details,
@@ -1091,3 +1227,39 @@ def decrypt_btsnoop_capture(run_dir: Path) -> DecryptionSummary | None:
     log.info("wrote decryption-summary.json and decryption-summary.md")
 
     return summary
+
+
+# ============================================================================
+# CLI Entry Point
+# ============================================================================
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Decrypt BLE btsnoop captures using Noise protocol keys from keylog files."
+    )
+    parser.add_argument(
+        "run_dir",
+        type=Path,
+        help="Directory containing btmon.btsnoop and keylog-*.txt files",
+    )
+    parser.add_argument(
+        "--debug-failures",
+        action="store_true",
+        help="Print details for each frame that fails decryption",
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-5s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    result = decrypt_btsnoop_capture(args.run_dir, debug_failures=args.debug_failures)
+
+    if result is None:
+        sys.exit(1)
+    sys.exit(0)
