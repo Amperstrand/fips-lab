@@ -1,0 +1,6 @@
+ai-legion-small:
+  esp32-jtag:
+    cls: USBSerialPort
+    match:
+      ID_VENDOR_ID: "303a"
+      ID_MODEL_ID: "1001"
