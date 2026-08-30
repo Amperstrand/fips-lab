@@ -1,0 +1,74 @@
+scenario:
+  name: regression-l2cap-dialect
+  duration_secs: 420
+  description: >
+    L2CAP dialect regression guard — encodes the four root causes from the
+    2026-08-29/30 session as detectable failures. Each cause maps to an
+    assertion: (1) fips dialing LePublic at a Random peer (fips fix 1422117e)
+    -> probe never completes -> peer_connected fails; (2) framed exchange
+    dialect instead of master raw 33B -> 'invalid key: malformed' ->
+    peer_connected fails; (3) len-prefixed data SDUs -> 'unknown FMP
+    version: N' -> promotes never or dies early -> peer_connected fails;
+    (4) role deadlock (peer_sent_first=true) -> link lives ~45s, zero MSG1,
+    resets -> mmp_counters_advancing fails on the zombie window. The
+    sustained-window assertions matter: peer_connected alone passes a link
+    that promoted once and froze.
+
+topology:
+  devices:
+    - id: linux
+      inventory_ref: linux-218
+      role: fips-controller
+    - id: esp32
+      inventory_ref: esp32-d0wd-01
+      role: microfips-peripheral
+  links:
+    - from: linux
+      to: esp32
+      transport: ble
+
+isolation:
+  mode: lab-allowlist
+  deny_unknown_peers: true
+  write_peers_allow: true
+  write_peers_deny_all: true
+  include_devices: [linux, esp32]
+
+deploy:
+  restart_before_test: true
+  stop_after_test: false
+  keylog: true
+  warmup_secs: 30
+  readiness_timeout_secs: 90
+
+actions:
+  warmup_secs: 15
+  metrics:
+    interval_secs: 15
+    from: [linux]
+    collect: [show_status, show_peers, show_mmp]
+  capture:
+    serial: true
+    btmon:
+      enabled: true
+      device: linux
+    keylog: true
+    rssi: true
+
+assertions:
+  - type: peer_connected
+    from: linux
+    to: esp32
+    within_secs: 90
+  - type: mmp_counters_advancing
+    from: linux
+    to: esp32
+    min_delta: 10
+  - type: no_serial_crash
+    device: esp32
+  - type: max_disconnects
+    max: 1
+  - type: reconnect_within
+    from: linux
+    to: esp32
+    within_secs: 45

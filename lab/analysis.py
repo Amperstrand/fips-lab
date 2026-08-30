@@ -885,6 +885,48 @@ def _evaluate_scenario_assertions(
                 passed=actual_max <= max_per_hour,
             ))
 
+        elif atype == "mmp_counters_advancing":
+            # Catches zombie links: a peer still listed "connected" whose
+            # packet counters are frozen (regression class from the
+            # 2026-08-29 L2CAP session: role-deadlock and framing breaks
+            # can leave a link that promoted once and then went silent).
+            from_dev = assertion.get("from", "")
+            to_dev = assertion.get("to", "")
+            min_delta = assertion.get("min_delta", 5)
+            pair = _pair_label(from_dev, to_dev)
+            first = last = None
+            if timeseries:
+                for sample in timeseries:
+                    for alias, cmds in sample.get("devices", {}).items():
+                        if not isinstance(cmds, dict):
+                            continue
+                        peers_data = cmds.get("show_peers", {})
+                        if not (isinstance(peers_data, dict) and peers_data.get("peers")):
+                            continue
+                        for p in peers_data["peers"]:
+                            label = _pair_label(alias, p.get("display_name", ""))
+                            pkt = p.get("stats", {}).get("packets_recv")
+                            if pkt is None or (label != pair and to_dev not in p.get("display_name", "")):
+                                continue
+                            if first is None:
+                                first = pkt
+                            last = pkt
+            if first is None or last is None:
+                results.append(AssertionResult(
+                    name=f"mmp_counters_advancing({from_dev} → {to_dev})",
+                    expected=f"packets_recv +>={min_delta} over the run",
+                    actual="no peer counters in metrics",
+                    passed=False,
+                ))
+            else:
+                delta = (last or 0) - (first or 0)
+                results.append(AssertionResult(
+                    name=f"mmp_counters_advancing({from_dev} → {to_dev})",
+                    expected=f"packets_recv +>={min_delta} over the run",
+                    actual=f"+{delta} (first={first} last={last})",
+                    passed=delta >= min_delta,
+                ))
+
     return results
 
 
