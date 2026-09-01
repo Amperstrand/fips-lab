@@ -1,0 +1,39 @@
+# Bench board registry — the hardware safety contract.
+# (Pattern ported from bolty-rs tools/hil/hil/cards.toml — see the
+# Bench Testing Playbook pattern #9.)
+#
+# Any board NOT listed here (or listed without the required op) is REFUSED
+# for that operation. Serial is the USB serial number (on Espressif
+# USB-JTAG it IS the MAC). ops:
+#   flash    = may be flashed with test firmware (destructive)
+#   observe  = console-tap only (never flashed by scenarios)
+#
+# Boards deliberately NOT listed (refused for every op):
+#   - M5 Stack Hades2001 (FTDI 0403:6001) — OFF-LIMITS, other project
+#   - any board that appears on the bench without an entry here
+
+[boards."F4:12:FA:CF:03:84"]
+alias  = "s3-lab"
+chip   = "esp32s3"
+ops    = ["flash", "observe"]
+notes  = "G*9 lab identity, USB-JTAG"
+
+[boards."cc:8d:a2:2c:91:98"]
+alias  = "walter-1"
+chip   = "esp32s3"
+ops    = ["flash", "observe"]
+notes  = "G*5 (esp32s3), USB-JTAG; requires DEVICE_NSEC override"
+
+[boards."cc:8d:a2:2c:94:08"]
+alias  = "walter-2"
+chip   = "esp32s3"
+ops    = ["flash", "observe"]
+notes  = "G*7 (esp32s3b), USB-JTAG; requires DEVICE_NSEC override"
+
+[boards."stm32f469i-disco"]
+alias  = "f469-mcu"
+chip   = "stm32f469"
+ops    = ["flash", "observe"]
+notes  = "USB CDC c0de:cafe; flash via st-flash (never probe-rs live)"
+
+# CYD / atoms: add entries when their scenarios land (audit #188 c4-c5).

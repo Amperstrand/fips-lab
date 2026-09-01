@@ -25,6 +25,7 @@ from pathlib import Path
 from tollgate_lab import HardwareLock
 
 MICROFIPS_REPO = Path(os.environ.get("MICROFIPS_REPO", "~/src/microfips")).expanduser()
+BOARDS_TOML = Path(__file__).resolve().parent / "boards.toml"
 FIPS_BIN = Path(os.environ.get("FIPS_BIN", "~/src/fips/target/release/fips")).expanduser()
 EXPORT_ESP = Path(os.environ.get("EXPORT_ESP", "~/export-esp.sh")).expanduser()
 S3_TARGET = "xtensa-esp32s3-none-elf"
@@ -53,6 +54,33 @@ def find_board(vidpid: str = S3_VIDPID, serial: str | None = None) -> Path | Non
             if f"ID_SERIAL_SHORT={serial}" in props:
                 return p
     return None
+
+
+class BoardError(RuntimeError):
+    """A board operation was refused by the boards.toml safety contract."""
+
+
+def require_board(serial: str, op: str) -> None:
+    """Safety gate (bolty-rs cards.toml pattern): the board must be listed
+    in boards.toml with `op` permitted, or the operation is REFUSED. This
+    is what keeps off-limits hardware (e.g. the M5 Stack) out of every
+    scenario by construction — no scenario can flash what the registry
+    does not allow."""
+    import tomllib
+
+    with open(BOARDS_TOML, "rb") as f:
+        data = tomllib.load(f)
+    entry = data.get("boards", {}).get(serial)
+    if entry is None:
+        raise BoardError(
+            f"board {serial!r} is not in {BOARDS_TOML.name} — refusing {op}. "
+            "Add an entry with explicit ops to allow it."
+        )
+    if op not in entry.get("ops", []):
+        raise BoardError(
+            f"board {serial!r} ({entry.get('alias', '?')}) does not permit "
+            f"'{op}' (allowed: {', '.join(entry.get('ops', []))})"
+        )
 
 
 def load_dotenv(repo: Path) -> dict[str, str]:
@@ -137,7 +165,11 @@ def verify_knob(binary: Path, marker: str) -> None:
 
 
 def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP) -> None:
-    """Flash with port-lifecycle discipline: reader first, then fuser."""
+    """Flash with port-lifecycle discipline: reader first, then fuser.
+    Refuses boards not registered for 'flash' in boards.toml."""
+    serial = _serial_of(port)
+    if serial:
+        require_board(serial, "flash")
     subprocess.run(
         ["pkill", "-f", f"raw_tap.py {port}"], capture_output=True,
     )
@@ -148,6 +180,17 @@ def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP) -> None:
     subprocess.run(
         ["bash", "-c", cmd], check=True, capture_output=True, timeout=150,
     )
+
+
+def _serial_of(port: Path) -> str | None:
+    props = subprocess.run(
+        ["udevadm", "info", "-q", "property", str(port)],
+        capture_output=True, text=True,
+    ).stdout
+    for line in props.splitlines():
+        if line.startswith("ID_SERIAL_SHORT="):
+            return line.split("=", 1)[1]
+    return None
 
 
 class ConsoleTap:

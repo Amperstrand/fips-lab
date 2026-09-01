@@ -89,18 +89,29 @@ node's RX-silence link-dead timeout is the only death signal. Both are
 valid scenarios; asserting the wrong one tests the wrong thing (found by
 `test_link_death`, 2026-09-01).
 
-### 6. Daemon-side assertions
+### 6. Hardware safety contract: boards.toml (from bolty-rs)
+A registry of bench hardware with per-board allowed operations
+(`flash`, `observe`) — anything not listed is REFUSED by construction
+(`bench.require_board(serial, op)`). This is the port of bolty-rs's
+`cards.toml` (per-UID ops: read/burn/wipe) to MCU benches, and it is
+what keeps off-limits hardware (the M5 Stack) out of every scenario
+without relying on documentation alone. Pair with a **preflight test**
+(bolty-rs pattern): a cheap `hardware`-marked scenario asserting the rig
+state — boards present, registry entries current — that fails fast
+before mutation scenarios waste a flash cycle.
+
+### 7. Daemon-side assertions
 The node console is half the evidence; the daemon log + `fipsctl` are the
 other half. Note that rekey is *silent* at INFO on the daemon — its absence
 signature (e.g. the SecurityViolation disconnect cycle) is what a scenario
 must assert on. `LabFipsServiceDriver` (microfips AGENTS Phase 1) owns
 isolated config/port/identity per the security checklist there.
 
-### 7. Artifacts: `results/<run_id>/` (PRta pattern)
+### 8. Artifacts: `results/<run_id>/` (PRta pattern)
 Console capture, daemon log slice, verdict JSON, env/build hashes. An
 assertion that can't be re-examined after the run is a rumor.
 
-### 8. Parametrization
+### 9. Parametrization
 The whole point of fixtures: the same scenario over a matrix —
 `board ∈ {s3-lab, cyd, atom-a}`, `wire ∈ {ik, xx}`, `rekey_after_secs ∈ {5, 120}`
 (a fast lab value! the daemon config is ours) — is one
