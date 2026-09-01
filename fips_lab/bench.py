@@ -79,10 +79,14 @@ def lab_daemon_nsec(repo: Path, generator_mul: int = 8) -> str:
     return json.loads(out)["nsec_hex"]
 
 
-def build_firmware(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
+def build_firmware(
+    repo: Path, npub_hex: str, nsec_hex: str, extra_env: dict[str, str] | None = None,
+) -> Path:
     """Env-pinned release build with cargo-clean hygiene and binary
     verification. Raises RuntimeError on any verification miss — never
-    debug a stale pin on hardware (playbook pattern #4)."""
+    debug a stale pin on hardware (playbook pattern #4). `extra_env`
+    adds compiled-in knobs (e.g. REKEY_AFTER_SECS) — each must also be
+    listed in `verify_strings` to be binary-checked."""
     wifi = load_dotenv(repo)
     if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
         raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
@@ -101,6 +105,7 @@ def build_firmware(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
         "DEVICE_NSEC_HEX_esp32s3": nsec_hex,
         "RUSTUP_TOOLCHAIN": "esp",
     })
+    env.update(extra_env or {})
     cmd = (
         f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
         f"-p microfips-esp32s3 --release --target {S3_TARGET} "
@@ -120,6 +125,15 @@ def build_firmware(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
     if misses:
         raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
     return binary
+
+
+def verify_knob(binary: Path, marker: str) -> None:
+    """Binary-check a compiled-in behavioral knob (e.g. the self-rekey log
+    string only exists when the knob built a non-default config)."""
+    if marker.encode() not in binary.read_bytes():
+        raise RuntimeError(
+            f"knob marker {marker!r} missing from binary — stale build"
+        )
 
 
 def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP) -> None:
