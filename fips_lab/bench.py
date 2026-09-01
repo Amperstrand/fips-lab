@@ -180,10 +180,23 @@ class LabDaemon:
 
     STANDARD_CONFIG = Path("/tmp/opencode/fips-lab.yaml")
 
-    def __init__(self, repo: Path, rekey_after_secs: int, workdir: Path):
+    def __init__(
+        self,
+        repo: Path,
+        rekey_after_secs: int,
+        workdir: Path,
+        generator_mul: int = 8,
+        port: int = 21213,
+    ):
+        """`generator_mul` selects the daemon identity (lab_keygen G*N) and
+        `port` the UDP bind — a second instance with a different mul/port is
+        the mDNS rogue-daemon pattern (audit #188 c2)."""
         self.repo = repo
         self.rekey_after_secs = rekey_after_secs
         self.workdir = workdir
+        self.generator_mul = generator_mul
+        self.port = port
+        workdir.mkdir(parents=True, exist_ok=True)
         self.config = workdir / "daemon.yaml"
         self.log = workdir / "daemon.log"
         self._proc = None
@@ -208,8 +221,15 @@ class LabDaemon:
             time.sleep(0.5)
 
         template = (self.repo / "tools/fips-lab.yaml").read_text()
-        nsec = lab_daemon_nsec(self.repo)
+        nsec = lab_daemon_nsec(self.repo, self.generator_mul)
         cfg = template.replace("__LAB_DAEMON_NSEC__", nsec)
+        if self.port != 21213:
+            cfg = cfg.replace("192.168.13.221:21213", f"192.168.13.221:{self.port}")
+        # Distinct control sockets so concurrent instances never fight.
+        cfg = cfg.replace(
+            "transports:",
+            f'control:\n  socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
+        )
         # Scenario knob: speed the rekey cadence (node.rekey.after_secs).
         cfg = cfg.replace(
             "transports:",
