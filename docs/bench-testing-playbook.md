@@ -81,18 +81,26 @@ binary. Discipline:
 A `BuildMatrix` fixture should own this: given (board-identity, peer-npub,
 wifi), produce a verified binary path.
 
-### 5. Daemon-side assertions
+### 5. Daemon death: choose goodbye vs silence deliberately
+A graceful daemon stop (SIGTERM/systemctl) sends disconnect notifications —
+the node sees a clean `PeerDC`, never the silence path. To model gateway
+loss (the ESP-NOW failure mode), kill with SIGKILL: no goodbye, and the
+node's RX-silence link-dead timeout is the only death signal. Both are
+valid scenarios; asserting the wrong one tests the wrong thing (found by
+`test_link_death`, 2026-09-01).
+
+### 6. Daemon-side assertions
 The node console is half the evidence; the daemon log + `fipsctl` are the
 other half. Note that rekey is *silent* at INFO on the daemon — its absence
 signature (e.g. the SecurityViolation disconnect cycle) is what a scenario
 must assert on. `LabFipsServiceDriver` (microfips AGENTS Phase 1) owns
 isolated config/port/identity per the security checklist there.
 
-### 6. Artifacts: `results/<run_id>/` (PRta pattern)
+### 7. Artifacts: `results/<run_id>/` (PRta pattern)
 Console capture, daemon log slice, verdict JSON, env/build hashes. An
 assertion that can't be re-examined after the run is a rumor.
 
-### 7. Parametrization
+### 8. Parametrization
 The whole point of fixtures: the same scenario over a matrix —
 `board ∈ {s3-lab, cyd, atom-a}`, `wire ∈ {ik, xx}`, `rekey_after_secs ∈ {5, 120}`
 (a fast lab value! the daemon config is ours) — is one

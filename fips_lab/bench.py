@@ -238,14 +238,19 @@ class LabDaemon:
     def log_text(self) -> str:
         return self.log.read_text(errors="replace")
 
-    def stop(self) -> None:
+    def stop(self, restore: bool = True, graceful: bool = True) -> None:
+        """Stop the scenario daemon. `restore=False` for mid-test restarts
+        (link-death scenarios) so the standard daemon isn't bounced; the
+        final teardown stop() restores it once. `graceful=False` kills with
+        SIGKILL — no shutdown disconnect notifications, modeling gateway
+        loss (the RX-silence path) instead of a clean goodbye."""
         if self._proc and self._proc.poll() is None:
-            self._proc.terminate()
+            self._proc.terminate() if graceful else self._proc.kill()
             try:
                 self._proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self._proc.kill()
-        if self._standard_was_running:
+        if restore and self._standard_was_running:
             subprocess.run(
                 ["bash", str(self.repo / "scripts/run_lab_daemon.sh")],
                 capture_output=True, timeout=60,
