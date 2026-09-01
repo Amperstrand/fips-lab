@@ -86,19 +86,20 @@ def test_mdns_pinned_rejects_rogue_advert(request):
             "handshake_ok_count": console.count("handshake ok"),
             "heartbeats": console.count("heartbeat received"),
             "legit_promotions": legit_log.count("Connection promoted to active peer"),
-            "rogue_promotions_total": rogue_log.count("Connection promoted to active peer"),
-            # Node-specific: promotions in the rogue's log that are NOT the
-            # legit daemon (daemon-to-daemon peering is benign and may
-            # complete on longer runs; anything else means a node talked to
-            # the rogue). Each daemon prints its own npub at startup.
-            "rogue_foreign_promotions": sum(
-                1
-                for ln in rogue_log.splitlines()
-                if "promoted to active peer" in ln
-                and _own_npub(legit_log) not in ln
-            ),
-            "legit_npub": _own_npub(legit_log),
+            # Node-specific: the rogue must never see the NODE's identity at
+            # all (not even a handshake attempt). The node's npub is taken
+            # from the legit daemon's own promotion lines — the only peer it
+            # promotes in this scenario is the node. Any OTHER daemon on the
+            # LAN (e.g. the workstation's system daemon) may legitimately
+            # peer with the rogue; excluding by identity, not by counting.
+            "node_npub": _node_npub_from_legit(legit_log, _own_npub(legit_log)),
+            "rogue_mentions_node": 0,
         }
+        node_npub = verdict["node_npub"]
+        if node_npub:
+            verdict["rogue_mentions_node"] = sum(
+                1 for ln in rogue_log.splitlines() if node_npub in ln
+            )
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
 
         disc = " ".join(verdict["discovery_lines"])
@@ -108,8 +109,11 @@ def test_mdns_pinned_rejects_rogue_advert(request):
         assert verdict["heartbeats"] >= 1, verdict
         assert verdict["legit_promotions"] >= 1, verdict
         # The sharp assertion: a mis-pinned node completes a full handshake
-        # with the rogue (the lab ACL is default-open) — silence is proof.
-        assert verdict["rogue_foreign_promotions"] == 0, verdict
+        # with the rogue (the lab ACL is default-open) — the rogue never
+        # even sees the node's identity. Asserted only when the npub was
+        # extractable (an empty extraction fails loudly below).
+        assert verdict["node_npub"], "could not extract the node npub from the legit log"
+        assert verdict["rogue_mentions_node"] == 0, verdict
     finally:
         if tap:
             tap.stop()
@@ -125,4 +129,15 @@ def _own_npub(daemon_log: str) -> str:
     for ln in daemon_log.splitlines():
         if "npub:" in ln:
             return ln.split("npub:", 1)[1].strip().split()[0]
+    return ""
+
+
+def _node_npub_from_legit(legit_log: str, legit_own_npub: str) -> str:
+    """The bench node's npub: the peer the legit daemon promoted that is not
+    itself (its only node peer in this scenario)."""
+    for ln in legit_log.splitlines():
+        if "promoted to active peer" in ln and "peer=npub" in ln:
+            peer = ln.split("peer=", 1)[1].split()[0]
+            if peer != legit_own_npub:
+                return peer
     return ""

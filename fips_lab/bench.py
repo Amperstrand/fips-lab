@@ -225,15 +225,18 @@ class LabDaemon:
         cfg = template.replace("__LAB_DAEMON_NSEC__", nsec)
         if self.port != 21213:
             cfg = cfg.replace("192.168.13.221:21213", f"192.168.13.221:{self.port}")
-        # Distinct control sockets so concurrent instances never fight.
-        cfg = cfg.replace(
-            "transports:",
-            f'control:\n  socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
-        )
-        # Scenario knob: speed the rekey cadence (node.rekey.after_secs).
+        # Injection order matters: the rekey block must nest under `node:`,
+        # so it goes FIRST — the control block then lands at top level
+        # before `transports:` (both anchor on the same marker; reversing
+        # the order silently nests rekey inside control and the daemon
+        # falls back to the default cadence — found by the rekey soak).
         cfg = cfg.replace(
             "transports:",
             f"  rekey:\n    after_secs: {self.rekey_after_secs}\ntransports:",
+        )
+        cfg = cfg.replace(
+            "transports:",
+            f'control:\n  socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
         )
         self.config.write_text(cfg)
         self.log.write_text("")
