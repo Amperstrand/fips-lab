@@ -151,7 +151,7 @@ confirm — they should confirm, not explore.
 
 ## Scenario backlog (microfips bench, in priority order)
 
-LIVE and green (2026-09-02, 7 scenarios; 93 tests collect): `test_rekey_soak`
+LIVE and green (2026-09-02, 8 scenarios; 94 tests collect): `test_rekey_soak`
 (daemon-driven, fast/stock parametrized), `test_link_death`, `test_mdns_pinned`,
 `test_rekey_self_initiated` (node-driven, REKEY_AFTER_SECS knob),
 `test_mcu_to_mcu_mesh` (STM32 CDC + S3 WiFi dual-peer; FULL FSP session content
@@ -161,21 +161,26 @@ consecutive greens with identical verdicts after promotion), and
 `test_rekey_bidirectional` (node AND daemon rotate in
 one session; working point daemon=32 — see pattern 11), `test_l2cap_bringup`
 (atom-a D0WD ↔ lab daemon over BLE L2CAP; two consecutive greens with identical
-verdicts 2026-09-02 — peripheral path, allowlist pin accepted, FSP send+ACK).
+verdicts 2026-09-02 — peripheral path, allowlist pin accepted, FSP send+ACK),
+`test_rekey_soak_long` (hour-scale interleave soak at the same working point;
+first full 1800s run green in 30:31 — 49 node + 21 daemon rotations, 56
+cutovers/drains, 319 heartbeats, ONE session throughout (zero rebuilds across
+70 rotations), zero disconnects/SecurityViolations; window-scaling floors via
+REKEY_SOAK_SECS so the same file smoke-runs at 120s — the daemon's FIRST
+rotation is a tail event at short windows and is only asserted at ≥360s).
 
 Remaining, in priority order:
 
-1. **Long-run rekey interleave soak** — hour-scale sibling of
-   `test_rekey_bidirectional` (mark slow); run once interactively to bound
-   drift, then it guards via cron/nightly.
-2. `test_espnow_gw`, `test_hybrid_switch` — need a second S3 (the ESP-NOW
+1. `test_espnow_gw`, `test_hybrid_switch` — need a second S3 (the ESP-NOW
    node+gateway pair); the lab bench has one S3, so these wait on hardware.
-3. CDC echo (audit candidate 6) — backlog.
-4. fips-lab #3 — fold the raw-tap pattern into a proper labgrid driver (only
+2. CDC echo (audit candidate 6) — backlog.
+3. fips-lab #3 — fold the raw-tap pattern into a proper labgrid driver (only
    when the labgrid path is actually exercised). The FTDI tap now lives in
    `fips_lab/ftdi_tap.py` (pyserial) — see its docstring for why raw termios
    is not used on FTDI.
-5. Existing BLE scenarios (bench-era) keep running under the same fixtures.
+4. Existing BLE scenarios (bench-era) keep running under the same fixtures.
+5. Soak cron/nightly wiring (hackathon-tooling bench-nightly job) — the
+   scenario exists and is marked slow; scheduling it is tooling work.
 
 ## Coordinator topology (locked down 2026-09-02)
 
