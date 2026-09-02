@@ -182,6 +182,89 @@ def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP) -> None:
     )
 
 
+STM32_VIDPID = "c0de/cafe"
+ARM_TARGET = "thumbv7em-none-eabi"
+
+
+def find_stm32_cdc() -> Path | None:
+    """The STM32's USB CDC port (VID:PID c0de:cafe) — NOT the ST-Link."""
+    for prefix in ("ttyACM", "ttyUSB"):
+        for p in Path("/dev").glob(prefix + "*"):
+            try:
+                uevent = Path("/sys/class/tty", p.name, "device/../uevent").read_text()
+            except OSError:
+                continue
+            m = re.search(r"^PRODUCT=(\S+)", uevent, re.M)
+            if m and m.group(1).startswith(STM32_VIDPID):
+                return p
+    return None
+
+
+def build_stm32(repo: Path, npub_hex: str) -> Path:
+    """Host-toolchain build of the STM32 firmware with the peer npub pinned
+    (the registry default targets the VPS — bench scenarios pin the lab
+    daemon)."""
+    subprocess.run(
+        ["cargo", "build", "-p", "microfips", "--release",
+         "--target", ARM_TARGET],
+        cwd=repo, check=True, capture_output=True,
+        env={**os.environ, "DEVICE_NPUB_HEX_vps": npub_hex},
+    )
+    elf = repo / "target" / ARM_TARGET / "release" / "microfips"
+    bin_path = repo / "target" / ARM_TARGET / "release" / "microfips.bin"
+    subprocess.run(
+        ["arm-none-eabi-objcopy", "-O", "binary", str(elf), str(bin_path)],
+        check=True, capture_output=True,
+    )
+    return bin_path
+
+
+def flash_stm32(bin_path: Path) -> None:
+    """st-flash (never probe-rs during USB testing — playbook/MCU lessons)."""
+    require_board("stm32f469i-disco", "flash")
+    subprocess.run(
+        ["st-flash", "--connect-under-reset", "write", str(bin_path), "0x08000000"],
+        check=True, capture_output=True, timeout=120,
+    )
+
+
+class SerialBridge:
+    """tools/serial_udp_bridge.py as a managed subprocess (serial ↔ UDP)."""
+
+    def __init__(self, repo: Path, serial_port: Path, bind_port: int,
+                 udp_host: str, udp_port: int, log_file: Path):
+        self.log_file = log_file
+        self._proc = subprocess.Popen(
+            [sys.executable, str(repo / "tools/serial_udp_bridge.py"),
+             "--serial", str(serial_port), "--bind-port", str(bind_port),
+             "--udp-host", udp_host, "--udp-port", str(udp_port)],
+            stdout=log_file.open("wb"), stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL, start_new_session=True,
+        )
+
+    def read(self) -> str:
+        try:
+            return self.log_file.read_text(errors="replace")
+        except OSError:
+            return ""
+
+    def wait_for(self, pattern: str, timeout: float = 45.0) -> float:
+        import re as _re
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if _re.search(pattern, self.read()):
+                return timeout - (deadline - time.monotonic())
+            time.sleep(1.0)
+        raise TimeoutError(f"bridge: {pattern!r} not seen in {timeout}s")
+
+    def stop(self) -> None:
+        self._proc.terminate()
+        try:
+            self._proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+
+
 def _serial_of(port: Path) -> str | None:
     props = subprocess.run(
         ["udevadm", "info", "-q", "property", str(port)],
