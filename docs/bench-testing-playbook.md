@@ -56,6 +56,9 @@ version never fat-fingers an env var.
 `/dev/ttyACM0` is a lottery. Enumerate by `uevent` PRODUCT + `ID_SERIAL_SHORT`
 (the serial IS the MAC on Espressif USB-JTAG). Two same-chip boards differ
 only by serial. This belongs in a tollgate-lab inventory fixture.
+Note: sysfs PRODUCT strips leading zeros — FTDI 0403:6001 appears as
+`403/6001` — so compare VID:PID as hex ints, never strings (fips-lab's
+find_board silently missed both atoms until this was fixed, 2026-09-02).
 
 ### 2. Port lifecycle discipline
 One owner per port, always. Order matters and the wrong order hangs flashes:
@@ -63,6 +66,9 @@ kill the console reader FIRST, then `fuser -k`, then flash. A stuck flash
 (timeout on espflash) is almost always a stale reader — check `pgrep`, not
 just retries. (fips-lab #3 tracks embedding the raw-open + setsid patterns
 into the drivers so this stops being manual.)
+Recovery: a flashed STM32 that fails to re-enumerate its CDC (c0de:cafe)
+inside the poll window comes back with `st-flash --connect-under-reset
+reset` — the SWD reset restores the app USB cleanly (mesh run, 2026-09-02).
 
 ### 3. No-reset console tap
 pyserial asserts DTR on open → resets an ESP32-S3. Use `os.open` + termios
@@ -79,7 +85,14 @@ binary. Discipline:
   SSID, `bytes.fromhex(...)` search for the pinned npub, tail-byte check for
   G·N nsecs. Ten seconds, catches the trap that costs an hour.
 A `BuildMatrix` fixture should own this: given (board-identity, peer-npub,
-wifi), produce a verified binary path.
+wifi), produce a verified binary path. Two refinements earned 2026-09-02:
+(a) `option_env!` knobs consumed as STRINGS embed as ASCII, not bytes —
+verify the ASCII form (FIPS_EXTRA_ALLOWED_XONLY_HEX is runtime-compared
+against a hex_encode of the exchanged key, so lowercase ASCII hex is what
+lands in the binary); (b) know WHICH pin mechanism each transport uses —
+the L2CAP host never compiles in DEVICE_NPUB_HEX_vps (the peer key arrives
+via the BLE pubkey exchange), so its only peer pin is the allowlist knob;
+verifying the wrong bytes "fails" a healthy build.
 
 ### 5. Daemon death: choose goodbye vs silence deliberately
 A graceful daemon stop (SIGTERM/systemctl) sends disconnect notifications —
@@ -148,6 +161,12 @@ mostly suppresses the node (most draws under 30s dampening); daemon=32
 centers the draw on the overlap band. Derive the interval arithmetic from
 source FIRST, pick the working point on paper, then let bench runs
 confirm — they should confirm, not explore.
+Corollary (2026-09-02, `test_rekey_soak_long`): assert floors must be
+statistically justified by the window — an event with per-opportunity
+probability p makes zero-over-N a tail event, so gate the assert on N.
+The daemon's first rekey rotation has p ≈ 0.35–0.43 per node rotation;
+asserting it at a 120 s window failed on the tail, ≥360 s makes
+zero vanishingly unlikely.
 
 ## Scenario backlog (microfips bench, in priority order)
 
