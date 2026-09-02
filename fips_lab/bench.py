@@ -113,8 +113,10 @@ def build_firmware(
     """Env-pinned release build with cargo-clean hygiene and binary
     verification. Raises RuntimeError on any verification miss — never
     debug a stale pin on hardware (playbook pattern #4). `extra_env`
-    adds compiled-in knobs (e.g. REKEY_AFTER_SECS) — each must also be
-    listed in `verify_strings` to be binary-checked."""
+    adds compiled-in knobs (e.g. REKEY_AFTER_SECS). Note: knobs that
+    compile to non-string constants can't be binary-checked here —
+    verify those behaviorally via a boot/console signature, or via
+    `verify_knob` when a compile-time-distinct string exists."""
     wifi = load_dotenv(repo)
     if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
         raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
@@ -156,8 +158,9 @@ def build_firmware(
 
 
 def verify_knob(binary: Path, marker: str) -> None:
-    """Binary-check a compiled-in behavioral knob (e.g. the self-rekey log
-    string only exists when the knob built a non-default config)."""
+    """Binary-check a compiled-in string-valued knob (e.g. a build-time
+    env override whose value is embedded as text). Numeric `option_env!`
+    knobs compile to constants — verify those behaviorally instead."""
     if marker.encode() not in binary.read_bytes():
         raise RuntimeError(
             f"knob marker {marker!r} missing from binary — stale build"

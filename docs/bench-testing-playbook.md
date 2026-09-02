@@ -118,18 +118,63 @@ The whole point of fixtures: the same scenario over a matrix —
 `@pytest.mark.parametrize` away once the build matrix exists. Interactive
 testing cannot afford a matrix; automated testing can't afford not to.
 
+### 10. Validate the probe before trusting a zero
+A soft metric that has never observed a positive is not evidence of
+absence. The mesh scenario counted `"type=0x00"` on the node console — a
+string that can only appear in *inbound* datagram log lines, impossible in
+that topology — and its guaranteed zero was one session away from being
+reported as "the WiFi path never initiates FSP". Rules: derive probe
+strings from the emitting code (grep the exact format string in the
+firmware source, don't guess from memory); never hardcode a guessed frame
+size (a `149B` probe against a real 148B frame matches nothing — record a
+size histogram instead); name metrics after their mechanism (a metric
+called `sends` that counts inbound lines lies to the next reader). Before
+a zero proves anything, the probe must have matched a known-good
+observation or be derived from the emitter.
+
+### 11. Model BOTH sides' timers from source before bench-tuning cadences
+Two-sided timing protocols (rekey, keepalive, retry) starve in modes that
+are predictable from source but expensive to discover on hardware. The
+bidirectional rekey working point cost 3 bench runs (2 failures) because
+the fips daemon's jitter mechanism — per-session uniform ±15s draw,
+`fips/src/node/mod.rs` `REKEY_JITTER_SECS` — was one grep away and
+predicts every outcome. What mattered: BOTH sides reset their timer on
+every rotation (node: `session_started` resets on own cutover AND
+peer-follow promote; daemon: per-session `after_secs` restarts when the
+node's rotation replaces the session), plus the node's 30s self-init
+dampening. That yields hardware-confirmed starvation bounds: daemon=120
+starves (its effective period never under the ~33s node cycle), daemon=20
+mostly suppresses the node (most draws under 30s dampening); daemon=32
+centers the draw on the overlap band. Derive the interval arithmetic from
+source FIRST, pick the working point on paper, then let bench runs
+confirm — they should confirm, not explore.
+
 ## Scenario backlog (microfips bench, in priority order)
 
-1. **`test_rekey_soak`** (NEW, from 2026-09-01 / microfips #183): flash pinned
-   WiFi firmware → handshake → survive ≥2 daemon rekey cycles → assert node
-   console shows `rekey msg1 received` ≥2, `cutover complete` ≥2,
-   `drain complete` ≥2, zero session rebuilds; daemon log shows zero
-   `disconnect notification` in the window. Parametrize `rekey_after_secs`
-   down to 5s so a full soak is <60s. Full spec: fips-lab issue (see backlog).
-2. `test_link_death` — bridge kill → RX-silence timeout → re-discovery.
-3. `test_mdns_discovery` — pinned + open modes, advert tamper rejection.
-4. `test_espnow_gw`, `test_hybrid_switch` — AGENTS Phase 2 list.
-5. Existing BLE scenarios (bench-era) keep running under the same fixtures.
+LIVE and green (2026-09-02, 6 scenarios; 99 tests collect): `test_rekey_soak`
+(daemon-driven, fast/stock parametrized), `test_link_death`, `test_mdns_pinned`,
+`test_rekey_self_initiated` (node-driven, REKEY_AFTER_SECS knob),
+`test_mcu_to_mcu_mesh` (STM32 CDC + S3 WiFi dual-peer, FSP auto-initiation
+asserted both directions), `test_rekey_bidirectional` (node AND daemon rotate in
+one session; working point daemon=32 — see pattern 11).
+
+Remaining, in priority order:
+
+1. **L2CAP bring-up (audit candidate 4)** — atoms are attached; blocked on a
+   D0WD bench tier in `bench.py` (build `microfips-esp32` for
+   `xtensa-esp32-none-elf --features l2cap`, `espflash --chip esp32`, FTDI tap,
+   boards.toml entries). Full skip-plan: microfips #188 candidate-4 thread.
+   The legacy `test_esp32_l2cap.py` (old labgrid/SSH fixtures) retires once
+   migrated.
+2. **Mesh FSP full-session assertion** — `test_mcu_to_mcu_mesh` currently
+   asserts sends/receives ≥1; promote to PING/PONG content checks (S3 pings,
+   STM32 demo service answers) once observed across a few more runs.
+3. `test_espnow_gw`, `test_hybrid_switch` — need a second S3 (the ESP-NOW
+   node+gateway pair); the lab bench has one S3, so these wait on hardware.
+4. CDC echo (audit candidate 6) — backlog.
+5. fips-lab #3 — fold the raw-tap pattern into a proper labgrid driver (only
+   when the labgrid path is actually exercised).
+6. Existing BLE scenarios (bench-era) keep running under the same fixtures.
 
 ## Coordinator topology (locked down 2026-09-02)
 
