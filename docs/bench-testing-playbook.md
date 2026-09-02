@@ -131,6 +131,18 @@ testing cannot afford a matrix; automated testing can't afford not to.
 4. `test_espnow_gw`, `test_hybrid_switch` — AGENTS Phase 2 list.
 5. Existing BLE scenarios (bench-era) keep running under the same fixtures.
 
+## Coordinator topology (locked down 2026-09-02)
+
+`labgrid-coordinator` on the workstation binds **192.168.13.221:20408** only —
+not localhost, not 0.0.0.0. Rationale: localhost would break the planned
+multi-machine bench (ai-legion, ai-legion-small, mac laptop registering
+hardware), while 0.0.0.0 exposed the coordinator to every interface
+(enp5s0 cloud-LAB subnet, docker bridges). Lab clients set
+`LG_COORDINATOR=192.168.13.221:20408` (in ~/.bashrc on the workstation).
+Future machines reach the coordinator over the lab LAN; the exporter on
+each machine publishes its local hardware to it. Verified: localhost
+refused, cloud-LAB interface refused, lab interface serves.
+
 ## Cross-pollination ledger
 
 | Repo | Contributes | Should adopt |
