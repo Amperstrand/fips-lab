@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from tollgate_lab import HardwareLock
+from tollgate_lab.reservation import BoardReservation
 
 MICROFIPS_REPO = Path(os.environ.get("MICROFIPS_REPO", "~/src/microfips")).expanduser()
 BOARDS_TOML = Path(__file__).resolve().parent / "boards.toml"
@@ -444,7 +445,16 @@ def bench_available(board_serial: str) -> str | None:
 
 
 def acquire_board_lock(name: str = "microfips-bench"):
-    """Cross-project hardware lock (tollgate-lab)."""
+    """Cross-project hardware lock (tollgate-lab). Prefer
+    BoardReservation for board-level, cross-project coordination —
+    this remains for session-scoped locking."""
     lock = HardwareLock(name)
     lock.acquire()
     return lock
+
+
+def reserve_board(serial: str, project: str = "microfips", ttl_secs: int = 1800):
+    """Cross-project board reservation (tollgate-lab reservation layer):
+    visible to every Amperstrand project and every machine on the lab
+    network sharing the reservation dir. Context manager."""
+    return BoardReservation(serial, project, ttl_secs=ttl_secs)
