@@ -154,17 +154,20 @@ confirm — they should confirm, not explore.
 LIVE and green (2026-09-02, 7 scenarios; 93 tests collect): `test_rekey_soak`
 (daemon-driven, fast/stock parametrized), `test_link_death`, `test_mdns_pinned`,
 `test_rekey_self_initiated` (node-driven, REKEY_AFTER_SECS knob),
-`test_mcu_to_mcu_mesh` (STM32 CDC + S3 WiFi dual-peer, FSP auto-initiation
-asserted both directions), `test_rekey_bidirectional` (node AND daemon rotate in
+`test_mcu_to_mcu_mesh` (STM32 CDC + S3 WiFi dual-peer; FULL FSP session content
+asserted — SessionSetup→ACK, msg3, then PING/PONG round-trips: 3 PINGs sent
+(len=73/frame=110B), 3 PONGs received from the STM32's src prefix, two
+consecutive greens with identical verdicts after promotion), and
+`test_rekey_bidirectional` (node AND daemon rotate in
 one session; working point daemon=32 — see pattern 11), `test_l2cap_bringup`
 (atom-a D0WD ↔ lab daemon over BLE L2CAP; two consecutive greens with identical
 verdicts 2026-09-02 — peripheral path, allowlist pin accepted, FSP send+ACK).
 
 Remaining, in priority order:
 
-1. **Mesh FSP full-session assertion** — `test_mcu_to_mcu_mesh` currently
-   asserts sends/receives ≥1; promote to PING/PONG content checks (S3 pings,
-   STM32 demo service answers) once observed across a few more runs.
+1. **Long-run rekey interleave soak** — hour-scale sibling of
+   `test_rekey_bidirectional` (mark slow); run once interactively to bound
+   drift, then it guards via cron/nightly.
 2. `test_espnow_gw`, `test_hybrid_switch` — need a second S3 (the ESP-NOW
    node+gateway pair); the lab bench has one S3, so these wait on hardware.
 3. CDC echo (audit candidate 6) — backlog.
