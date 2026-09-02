@@ -122,12 +122,23 @@ def lab_nsec(repo: Path, generator_mul: int) -> str:
     return json.loads(out)["nsec_hex"]
 
 
+def lab_npub(repo: Path, generator_mul: int) -> str:
+    """Compressed npub (66 hex) for a G*N bench identity — the pin target
+    for firmware built against a lab daemon (e.g. the XX daemon G*22)."""
+    out = subprocess.check_output(
+        [sys.executable, str(repo / "tools/lab_keygen.py"), str(generator_mul)],
+        text=True,
+    )
+    return json.loads(out)["npub_hex"]
+
+
 def lab_daemon_nsec(repo: Path, generator_mul: int = 8) -> str:
     return lab_nsec(repo, generator_mul)
 
 
 def build_firmware(
     repo: Path, npub_hex: str, nsec_hex: str, extra_env: dict[str, str] | None = None,
+    features: str | None = None,
 ) -> Path:
     """Env-pinned release build with cargo-clean hygiene and binary
     verification. Raises RuntimeError on any verification miss — never
@@ -135,7 +146,10 @@ def build_firmware(
     adds compiled-in knobs (e.g. REKEY_AFTER_SECS). Note: knobs that
     compile to non-string constants can't be binary-checked here —
     verify those behaviorally via a boot/console signature, or via
-    `verify_knob` when a compile-time-distinct string exists."""
+    `verify_knob` when a compile-time-distinct string exists.
+    `features` selects cargo feature flags (e.g. "noise-xx" for the XX
+    wire — its presence is binary-verifiable via the negotiation log
+    string, which only compiles under that feature)."""
     wifi = load_dotenv(repo)
     if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
         raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
@@ -155,10 +169,11 @@ def build_firmware(
         "RUSTUP_TOOLCHAIN": "esp",
     })
     env.update(extra_env or {})
+    feature_flag = f" --features {features}" if features else ""
     cmd = (
         f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
         f"-p microfips-esp32s3 --release --target {S3_TARGET} "
-        f"-Zbuild-std=core,alloc"
+        f"-Zbuild-std=core,alloc{feature_flag}"
     )
     subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
 
@@ -171,6 +186,9 @@ def build_firmware(
         misses.append("pinned npub")
     if bytes.fromhex(nsec_hex) not in data:
         misses.append("device nsec")
+    if features and "noise-xx" in features and \
+            b"fmp negotiation: agreed version" not in data:
+        misses.append("noise-xx negotiation marker")
     if misses:
         raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
     return binary
@@ -513,6 +531,127 @@ class LabDaemon:
                 ["bash", str(self.repo / "scripts/run_lab_daemon.sh")],
                 capture_output=True, timeout=60,
             )
+
+
+FIPS_NEXT_BIN = Path(os.environ.get(
+    "FIPS_NEXT_BIN", "/tmp/opencode/fips-next/target/release/fips"
+))
+
+
+class BenchXxDaemon:
+    """Upstream-next (XX/FMP-v1, 0.6.0-dev) bench daemon for the #193 wire —
+    built from a jmcorgan/next worktree (AGENTS.md recipe; NEVER rebuilt in
+    ~/src/fips, whose target/ is the system daemon). Consumes a prebuilt
+    binary via FIPS_NEXT_BIN; skips cleanly when the worktree is gone
+    (worktrees under /tmp are disposable by design). Config follows the
+    next shape (node.rendezvous.lan.enabled, node.control.*) and the lab
+    security checklist: deterministic G*N identity, interface-scoped bind,
+    dedicated port (default 21214 — system 2121 and IK lab 21213 coexist).
+    The node pins this daemon's npub, so the G*8 IK lab daemon's advert is
+    rejected by the pin filter — no cross-dialect interference; this class
+    never stops or restores the standard IK lab daemon."""
+
+    def __init__(
+        self,
+        repo: Path,
+        workdir: Path,
+        generator_mul: int = 22,
+        port: int = 21214,
+        bind_ip: str = "192.168.13.221",
+    ):
+        self.repo = repo
+        self.workdir = workdir
+        self.generator_mul = generator_mul
+        self.port = port
+        self.bind_ip = bind_ip
+        workdir.mkdir(parents=True, exist_ok=True)
+        self.config = workdir / "xx-daemon.yaml"
+        self.log = workdir / "xx-daemon.log"
+        self.control_sock = f"/tmp/bench-xx-{port}.sock"
+        self.fipsctl = FIPS_NEXT_BIN.with_name("fipsctl")
+        self._proc = None
+
+    def _pids_for(self) -> list[int]:
+        out = subprocess.run(
+            ["pgrep", "-f", f"fips --config {self.config}"], capture_output=True, text=True,
+        ).stdout
+        return [int(x) for x in out.split()]
+
+    def available(self) -> str | None:
+        if not FIPS_NEXT_BIN.exists():
+            return (
+                f"FIPS_NEXT_BIN missing ({FIPS_NEXT_BIN}) — rebuild the "
+                "next-branch worktree per microfips AGENTS.md (#193 recipe)"
+            )
+        if not self.fipsctl.exists():
+            return f"fipsctl missing next to {FIPS_NEXT_BIN}"
+        return None
+
+    def start(self) -> None:
+        for pid in self._pids_for():
+            subprocess.run(["kill", str(pid)], capture_output=True)
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and self._pids_for():
+            time.sleep(0.5)
+
+        nsec = lab_nsec(self.repo, self.generator_mul)
+        self.config.write_text(
+            "# Bench XX daemon (upstream next) — fips_lab.BenchXxDaemon\n"
+            "node:\n"
+            "  identity:\n"
+            f"    nsec: {nsec}\n"
+            "    persistent: false\n"
+            "  log_level: debug\n"
+            "  rendezvous:\n"
+            "    lan:\n"
+            "      enabled: true\n"
+            "  control:\n"
+            f'    socket_path: "{self.control_sock}"\n'
+            "transports:\n"
+            "  udp:\n"
+            f'    bind_addr: "{self.bind_ip}:{self.port}"\n'
+            "tun:\n"
+            "  enabled: false\n"
+            "dns:\n"
+            "  enabled: false\n"
+        )
+        self.log.write_text("")
+        self._proc = subprocess.Popen(
+            [str(FIPS_NEXT_BIN), "--config", str(self.config)],
+            stdout=self.log.open("ab"), stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL, start_new_session=True,
+        )
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            log = self.log.read_text(errors="replace")
+            if "UDP transport started" in log:
+                return
+            if "Failed to start node" in log or self._proc.poll() is not None:
+                raise RuntimeError(f"XX daemon failed: {log[-600:]}")
+            time.sleep(0.5)
+        raise TimeoutError(f"XX daemon transport not up: {self.log.read_text()[-600:]}")
+
+    def log_text(self) -> str:
+        return self.log.read_text(errors="replace")
+
+    def peers(self) -> list[dict]:
+        out = subprocess.run(
+            [str(self.fipsctl), "-s", self.control_sock, "show", "peers"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if out.returncode != 0:
+            raise RuntimeError(f"fipsctl failed: {out.stderr[-300:]}")
+        return json.loads(out.stdout).get("peers", [])
+
+    def stop(self) -> None:
+        for pid in self._pids_for():
+            subprocess.run(["kill", str(pid)], capture_output=True)
+        if self._proc and self._proc.poll() is None:
+            self._proc.terminate()
+            try:
+                self._proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
 
 
 def make_run_dir(label: str) -> Path:
