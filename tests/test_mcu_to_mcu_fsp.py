@@ -4,15 +4,23 @@ VPS dependency (audit #188 candidate 3).
 
 Hard assertions: both nodes promoted by the daemon (2 distinct peers),
 sustained heartbeats on BOTH bridges/nodes, zero disconnects, and the S3
-auto-initiates FSP toward its compiled-in STM32 target (session datagram
-sends visible on the S3 console since the steady-loop send log landed in
-microfips; initiator arms FSP_START_DELAY=5s after handshake, retries every
-8s — the settle window below covers several attempts).
+auto-initiates FSP toward its compiled-in STM32 target — FULL session
+content: SessionSetup -> ACK, msg3, then PING/PONG (promoted 2026-09-02
+from sends/ACKs >=1 after observing green-run artifacts).
 
-Soft-recorded (verdict, no assert): FSP datagram RECEPTION on the S3 (the
-STM32's ACK/PONG return path) and the STM32 bridge's inbound frame-size
-histogram — full session establishment depends on daemon routing and the
-STM32 responder, observed before promoting these to hard asserts.
+Probe provenance (playbook pattern 10 — sizes derived, not guessed):
+- PING/PONG are 4-byte payloads: session datagram len=73 (35B body +
+  AEAD(4B)), FMP frame 110B. SessionSetup is len=111 frame=148B, msg3 is
+  len=115 frame=152B — all three distinguishable by size.
+- Inbound discriminator: node.rs/fsp_handler.rs log
+  `fsp: datagram in len=.. fsp_type=.. src={addr[0:2]}..{addr[14:16]}`;
+  the STM32's registry NodeAddr is 132f39a9...f295 -> `src=132f..f295`.
+  fsp_type: 0x02 = SessionAck, 0x00 = established-phase data (PONGs).
+- The PONG itself: microfips-service FspServiceAdapter special-cases
+  payload == b"PING" -> replies b"PONG"; the S3's test_ping detection is
+  sim-only, so the PONG is visible only via the inbound log line.
+- Initiator arms FSP_START_DELAY=5s after handshake, PINGs every 10s in
+  Established; the 30s settle window covers several round-trips.
 
 Run:
     pytest tests/test_mcu_to_mcu_fsp.py -v
@@ -32,6 +40,10 @@ LAB_DAEMON_NPUB = (
 )
 LAB_HOST = "192.168.13.221"
 LAB_PORT = 21213
+STM32_SRC_PREFIX = "132f"
+S3_PING_SEND = "sending session datagram type=0x00 len=73 frame=110B"
+STM32_PONG_IN = f"fsp: datagram in len=73 fsp_type=0x00 src={STM32_SRC_PREFIX}"
+STM32_ACK_IN = f"fsp: datagram in len=135 fsp_type=0x02 src={STM32_SRC_PREFIX}"
 
 
 @pytest.mark.hardware
@@ -86,7 +98,8 @@ def test_mcu_to_mcu_mesh(request):
         stm_bridge.wait_for(r"<< UDP->CDC: frame#[0-9]* 37B", timeout=120)
 
         # Batched settle window (playbook: one wait, one evidence sweep):
-        # FSP_START_DELAY=5s after the S3 handshake + >=2 8s retries.
+        # setup+ack+msg3 take seconds, then PINGs every 10s in Established —
+        # 30s covers several full PING/PONG round-trips.
         time.sleep(30)
 
         console_s3 = s3_tap.read()
@@ -100,8 +113,13 @@ def test_mcu_to_mcu_mesh(request):
             "stm32_heartbeats": stm_log.count("37B"),
             "s3_handshake_ok": console_s3.count("handshake ok"),
             "s3_heartbeats": console_s3.count("heartbeat received"),
-            "s3_session_datagram_sends": console_s3.count("sending session datagram"),
-            "s3_datagram_recvs": console_s3.count("fsp: datagram in"),
+            "s3_ping_sends": console_s3.count(S3_PING_SEND),
+            "s3_pongs_from_stm32": console_s3.count(STM32_PONG_IN),
+            "s3_session_ack_from_stm32": console_s3.count(STM32_ACK_IN),
+            "s3_session_datagram_sends_total": console_s3.count(
+                "sending session datagram"
+            ),
+            "s3_datagram_recvs_total": console_s3.count("fsp: datagram in"),
             "stm32_inbound_frame_sizes": sorted(
                 re.findall(r"UDP->CDC: frame#\d+ (\d+)B", stm_log)
             ),
@@ -114,8 +132,9 @@ def test_mcu_to_mcu_mesh(request):
         assert verdict["stm32_heartbeats"] >= 2, verdict
         assert verdict["s3_handshake_ok"] == 1, verdict
         assert verdict["s3_heartbeats"] >= 1, verdict
-        assert verdict["s3_session_datagram_sends"] >= 1, verdict
-        assert verdict["s3_datagram_recvs"] >= 1, verdict
+        assert verdict["s3_ping_sends"] >= 1, verdict
+        assert verdict["s3_pongs_from_stm32"] >= 1, verdict
+        assert verdict["s3_session_ack_from_stm32"] >= 1, verdict
         assert verdict["daemon_disconnects"] == 0, verdict
     finally:
         if s3_tap:
