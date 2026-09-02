@@ -3,16 +3,23 @@ lab daemon — the bench shape of scripts/test_mcu_to_mcu_fsp.sh without the
 VPS dependency (audit #188 candidate 3).
 
 Hard assertions: both nodes promoted by the daemon (2 distinct peers),
-sustained heartbeats on BOTH bridges/nodes, zero disconnects.
-Soft-recorded (verdict, no assert): FSP SessionSetup/ACK frames between the
-MCUs — whether the S3 WiFi node auto-initiates FSP toward its compiled-in
-STM32 target over the mesh is a known unknown this scenario observes.
+sustained heartbeats on BOTH bridges/nodes, zero disconnects, and the S3
+auto-initiates FSP toward its compiled-in STM32 target (session datagram
+sends visible on the S3 console since the steady-loop send log landed in
+microfips; initiator arms FSP_START_DELAY=5s after handshake, retries every
+8s — the settle window below covers several attempts).
+
+Soft-recorded (verdict, no assert): FSP datagram RECEPTION on the S3 (the
+STM32's ACK/PONG return path) and the STM32 bridge's inbound frame-size
+histogram — full session establishment depends on daemon routing and the
+STM32 responder, observed before promoting these to hard asserts.
 
 Run:
     pytest tests/test_mcu_to_mcu_fsp.py -v
 """
 
 import json
+import re
 import time
 
 import pytest
@@ -78,6 +85,10 @@ def test_mcu_to_mcu_mesh(request):
         # Sustained mesh traffic: heartbeats both directions on the bridge.
         stm_bridge.wait_for(r"<< UDP->CDC: frame#[0-9]* 37B", timeout=120)
 
+        # Batched settle window (playbook: one wait, one evidence sweep):
+        # FSP_START_DELAY=5s after the S3 handshake + >=2 8s retries.
+        time.sleep(30)
+
         console_s3 = s3_tap.read()
         daemon_log = daemon.log_text()
         stm_log = stm_bridge.read()
@@ -89,10 +100,11 @@ def test_mcu_to_mcu_mesh(request):
             "stm32_heartbeats": stm_log.count("37B"),
             "s3_handshake_ok": console_s3.count("handshake ok"),
             "s3_heartbeats": console_s3.count("heartbeat received"),
-            # Soft observations (known unknown: does the S3 auto-initiate
-            # FSP toward its compiled-in STM32 target over the mesh?)
-            "fsp_session_setup_seen_on_stm32": stm_log.count("149B"),
-            "s3_session_datagram_sends": console_s3.count("type=0x00"),
+            "s3_session_datagram_sends": console_s3.count("sending session datagram"),
+            "s3_datagram_recvs": console_s3.count("fsp: datagram in"),
+            "stm32_inbound_frame_sizes": sorted(
+                re.findall(r"UDP->CDC: frame#\d+ (\d+)B", stm_log)
+            ),
             "daemon_disconnects": daemon_log.count("disconnect notification"),
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
@@ -102,6 +114,8 @@ def test_mcu_to_mcu_mesh(request):
         assert verdict["stm32_heartbeats"] >= 2, verdict
         assert verdict["s3_handshake_ok"] == 1, verdict
         assert verdict["s3_heartbeats"] >= 1, verdict
+        assert verdict["s3_session_datagram_sends"] >= 1, verdict
+        assert verdict["s3_datagram_recvs"] >= 1, verdict
         assert verdict["daemon_disconnects"] == 0, verdict
     finally:
         if s3_tap:
