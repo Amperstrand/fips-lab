@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""No-reset USB-serial console tap.
+"""No-reset USB-serial console tap for USB-JTAG ports (ESP32-S3).
 
 pyserial asserts DTR on open, which resets an ESP32-S3 — this uses
 os.open + termios directly with no TIOCM touches (bench-testing
 playbook pattern #3). Run as a subprocess; it appends raw bytes to
 OUTFILE until killed.
+
+NOT for real-UART adapters (FTDI): the raw-termios config drains the
+pre-open backlog but stops receiving live bytes on FTDI — use
+ftdi_tap.py (pyserial) there.
 
 Usage: raw_tap.py <port> <outfile>
 """

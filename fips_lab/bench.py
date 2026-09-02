@@ -33,6 +33,17 @@ S3_TARGET = "xtensa-esp32s3-none-elf"
 S3_VIDPID = "303a/1001"
 RESULTS_ROOT = Path(__file__).resolve().parent.parent / "results"
 TAP_SCRIPT = Path(__file__).resolve().parent / "raw_tap.py"
+FTDI_TAP_SCRIPT = Path(__file__).resolve().parent / "ftdi_tap.py"
+
+
+def _vidpid_match(product: str, vidpid: str) -> bool:
+    """sysfs PRODUCT strips leading zeros ('403/6001' for FTDI 0403:6001) —
+    compare as hex ints, not strings."""
+    try:
+        return [int(x, 16) for x in product.split("/")[:2]] == \
+               [int(x, 16) for x in vidpid.split("/")[:2]]
+    except ValueError:
+        return False
 
 
 def find_board(vidpid: str = S3_VIDPID, serial: str | None = None) -> Path | None:
@@ -44,7 +55,7 @@ def find_board(vidpid: str = S3_VIDPID, serial: str | None = None) -> Path | Non
             except OSError:
                 continue
             m = re.search(r"^PRODUCT=(\S+)", uevent, re.M)
-            if not m or m.group(1).split("/")[:2] != vidpid.split("/")[:2]:
+            if not m or not _vidpid_match(m.group(1), vidpid):
                 continue
             if serial is None:
                 return p
@@ -100,12 +111,19 @@ def load_dotenv(repo: Path) -> dict[str, str]:
     return env
 
 
-def lab_daemon_nsec(repo: Path, generator_mul: int = 8) -> str:
+def lab_nsec(repo: Path, generator_mul: int) -> str:
+    """Deterministic bench identity scalar (G*N) for any generator — the
+    board identities (atom-a G*11, atom-b G*12, s3-lab G*9, ...) and the
+    lab daemon (G*8) all come from the same tools/lab_keygen.py."""
     out = subprocess.check_output(
         [sys.executable, str(repo / "tools/lab_keygen.py"), str(generator_mul)],
         text=True,
     )
     return json.loads(out)["nsec_hex"]
+
+
+def lab_daemon_nsec(repo: Path, generator_mul: int = 8) -> str:
+    return lab_nsec(repo, generator_mul)
 
 
 def build_firmware(
@@ -168,19 +186,23 @@ def verify_knob(binary: Path, marker: str) -> None:
         )
 
 
-def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP) -> None:
+def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP,
+          chip: str = "esp32s3") -> None:
     """Flash with port-lifecycle discipline: reader first, then fuser.
-    Refuses boards not registered for 'flash' in boards.toml."""
+    Refuses boards not registered for 'flash' in boards.toml. `chip`
+    selects the espflash target (esp32s3 default; esp32 for the D0WD
+    atoms)."""
     serial = _serial_of(port)
     if serial:
         require_board(serial, "flash")
-    subprocess.run(
-        ["pkill", "-f", f"raw_tap.py {port}"], capture_output=True,
-    )
+    for tap_name in ("raw_tap.py", "ftdi_tap.py"):
+        subprocess.run(
+            ["pkill", "-f", f"{tap_name} {port}"], capture_output=True,
+        )
     time.sleep(0.5)
     subprocess.run(["fuser", "-k", str(port)], capture_output=True)
     time.sleep(1)
-    cmd = f". {esp_toolchain} && espflash flash -p {port} --chip esp32s3 {binary}"
+    cmd = f". {esp_toolchain} && espflash flash -p {port} --chip {chip} {binary}"
     subprocess.run(
         ["bash", "-c", cmd], check=True, capture_output=True, timeout=150,
     )
@@ -188,6 +210,54 @@ def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP) -> None:
 
 STM32_VIDPID = "c0de/cafe"
 ARM_TARGET = "thumbv7em-none-eabi"
+
+D0WD_TARGET = "xtensa-esp32-none-elf"
+D0WD_VIDPID = "0403/6001"  # FTDI — atoms AND the off-limits M5 Stack; serial disambiguates
+D0WD_L2CAP_BIN = "microfips-esp32-l2cap"
+
+
+def build_d0wd_l2cap(
+    repo: Path, nsec_hex: str, extra_allowed_xonly_hex: str,
+) -> Path:
+    """D0WD L2CAP tier (audit #188 candidate 4): build `microfips-esp32`
+    with `--features l2cap`. No WiFi env — the L2CAP transport never
+    associates. Pinning note (differs from the WiFi tier): the L2CAP host
+    learns the daemon pubkey from the BLE exchange and validates it against
+    FIPS_ALLOWED_PUBKEYS + FIPS_EXTRA_ALLOWED_XONLY_HEX (esp-transport
+    config.rs) — DEVICE_NPUB_HEX_vps is never compiled in, so the ONLY
+    peer pin is the allowlist knob. It is consumed via option_env! and
+    embedded as lowercase ASCII hex (compared at runtime against a
+    hex_encode of the exchanged key), so that is the form to verify in
+    the binary (playbook pattern 4)."""
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32",
+         "--release", "--target", D0WD_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "DEVICE_NSEC_HEX_esp32": nsec_hex,
+        "FIPS_EXTRA_ALLOWED_XONLY_HEX": extra_allowed_xonly_hex,
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32 --release --target {D0WD_TARGET} "
+        f"-Zbuild-std=core,alloc --features l2cap --bin {D0WD_L2CAP_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / D0WD_TARGET / "release" / D0WD_L2CAP_BIN
+    data = binary.read_bytes()
+    misses = []
+    if extra_allowed_xonly_hex.encode() not in data:
+        misses.append("extra allowlist xonly (ascii)")
+    if bytes.fromhex(nsec_hex) not in data:
+        misses.append("device nsec")
+    if misses:
+        raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
+    return binary
 
 
 def find_stm32_cdc() -> Path | None:
@@ -281,12 +351,22 @@ def _serial_of(port: Path) -> str | None:
 
 
 class ConsoleTap:
-    """Detached no-reset console tap; read() returns decoded text so far."""
+    """Detached no-reset console tap; read() returns decoded text so far.
+    Real-UART adapters (FTDI atoms) REQUIRE `baud` and route through
+    ftdi_tap.py (pyserial — the raw-termios tap drains the backlog then
+    stops receiving live bytes on FTDI); USB-JTAG ports (S3) ignore baud
+    and use raw_tap.py. Neither touches TIOCM, but opening an auto-reset
+    board (M5 Atom) can still pulse DTR via the driver — a deterministic
+    fresh boot with the tap attached (playbook pattern 3, amended)."""
 
-    def __init__(self, port: Path, outfile: Path):
+    def __init__(self, port: Path, outfile: Path, baud: int | None = None):
         self.outfile = outfile
+        if baud is not None:
+            argv = [sys.executable, str(FTDI_TAP_SCRIPT), str(port), str(outfile), str(baud)]
+        else:
+            argv = [sys.executable, str(TAP_SCRIPT), str(port), str(outfile)]
         self._proc = subprocess.Popen(
-            [sys.executable, str(TAP_SCRIPT), str(port), str(outfile)],
+            argv,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
@@ -331,15 +411,19 @@ class LabDaemon:
         workdir: Path,
         generator_mul: int = 8,
         port: int = 21213,
+        ble: bool = False,
     ):
         """`generator_mul` selects the daemon identity (lab_keygen G*N) and
         `port` the UDP bind — a second instance with a different mul/port is
-        the mDNS rogue-daemon pattern (audit #188 c2)."""
+        the mDNS rogue-daemon pattern (audit #188 c2). `ble=True` adds the
+        BLE L2CAP transport on hci0 alongside UDP (L2CAP bring-up scenario,
+        #188 c4): fips config shape `transports.ble.adapter`."""
         self.repo = repo
         self.rekey_after_secs = rekey_after_secs
         self.workdir = workdir
         self.generator_mul = generator_mul
         self.port = port
+        self.ble = ble
         workdir.mkdir(parents=True, exist_ok=True)
         self.config = workdir / "daemon.yaml"
         self.log = workdir / "daemon.log"
@@ -382,6 +466,13 @@ class LabDaemon:
             "transports:",
             f'control:\n  socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
         )
+        if self.ble:
+            # Anchored on the udp block, not the "transports:" marker the
+            # rekey/control injections rewrite above — order-independent.
+            cfg = cfg.replace(
+                "\n  udp:\n",
+                "\n  ble:\n    adapter: hci0\n  udp:\n",
+            )
         self.config.write_text(cfg)
         self.log.write_text("")
 
@@ -431,9 +522,9 @@ def make_run_dir(label: str) -> Path:
     return run_dir
 
 
-def bench_available(board_serial: str) -> str | None:
+def bench_available(board_serial: str, vidpid: str = S3_VIDPID) -> str | None:
     """Return a skip-reason if the bench can't run, else None."""
-    if find_board(serial=board_serial) is None:
+    if find_board(vidpid=vidpid, serial=board_serial) is None:
         return f"bench board {board_serial} not attached"
     if not (MICROFIPS_REPO / ".env").exists():
         return "microfips .env missing"

@@ -36,4 +36,16 @@ chip   = "stm32f469"
 ops    = ["flash", "observe"]
 notes  = "USB CDC c0de:cafe; flash via st-flash (never probe-rs live)"
 
-# CYD / atoms: add entries when their scenarios land (audit #188 c4-c5).
+[boards."81528A13B6"]
+alias  = "atom-a"
+chip   = "esp32"
+ops    = ["flash", "observe"]
+notes  = "M5 Atom ESP32-PICO-D4, G*11 lab identity, FTDI 0403:6001 (shared VID:PID with the off-limits M5 Stack — always pass the serial)"
+
+[boards."9D529068B4"]
+alias  = "atom-b"
+chip   = "esp32"
+ops    = ["flash", "observe"]
+notes  = "M5 Atom ESP32-PICO-D4, G*12 lab identity, FTDI 0403:6001 (shared VID:PID with the off-limits M5 Stack — always pass the serial)"
+
+# CYD: add an entry when its scenario lands (audit #188 c5 needs a second S3 first).
