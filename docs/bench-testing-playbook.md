@@ -151,30 +151,28 @@ confirm — they should confirm, not explore.
 
 ## Scenario backlog (microfips bench, in priority order)
 
-LIVE and green (2026-09-02, 6 scenarios; 99 tests collect): `test_rekey_soak`
+LIVE and green (2026-09-02, 7 scenarios; 93 tests collect): `test_rekey_soak`
 (daemon-driven, fast/stock parametrized), `test_link_death`, `test_mdns_pinned`,
 `test_rekey_self_initiated` (node-driven, REKEY_AFTER_SECS knob),
 `test_mcu_to_mcu_mesh` (STM32 CDC + S3 WiFi dual-peer, FSP auto-initiation
 asserted both directions), `test_rekey_bidirectional` (node AND daemon rotate in
-one session; working point daemon=32 — see pattern 11).
+one session; working point daemon=32 — see pattern 11), `test_l2cap_bringup`
+(atom-a D0WD ↔ lab daemon over BLE L2CAP; two consecutive greens with identical
+verdicts 2026-09-02 — peripheral path, allowlist pin accepted, FSP send+ACK).
 
 Remaining, in priority order:
 
-1. **L2CAP bring-up (audit candidate 4)** — atoms are attached; blocked on a
-   D0WD bench tier in `bench.py` (build `microfips-esp32` for
-   `xtensa-esp32-none-elf --features l2cap`, `espflash --chip esp32`, FTDI tap,
-   boards.toml entries). Full skip-plan: microfips #188 candidate-4 thread.
-   The legacy `test_esp32_l2cap.py` (old labgrid/SSH fixtures) retires once
-   migrated.
-2. **Mesh FSP full-session assertion** — `test_mcu_to_mcu_mesh` currently
+1. **Mesh FSP full-session assertion** — `test_mcu_to_mcu_mesh` currently
    asserts sends/receives ≥1; promote to PING/PONG content checks (S3 pings,
    STM32 demo service answers) once observed across a few more runs.
-3. `test_espnow_gw`, `test_hybrid_switch` — need a second S3 (the ESP-NOW
+2. `test_espnow_gw`, `test_hybrid_switch` — need a second S3 (the ESP-NOW
    node+gateway pair); the lab bench has one S3, so these wait on hardware.
-4. CDC echo (audit candidate 6) — backlog.
-5. fips-lab #3 — fold the raw-tap pattern into a proper labgrid driver (only
-   when the labgrid path is actually exercised).
-6. Existing BLE scenarios (bench-era) keep running under the same fixtures.
+3. CDC echo (audit candidate 6) — backlog.
+4. fips-lab #3 — fold the raw-tap pattern into a proper labgrid driver (only
+   when the labgrid path is actually exercised). The FTDI tap now lives in
+   `fips_lab/ftdi_tap.py` (pyserial) — see its docstring for why raw termios
+   is not used on FTDI.
+5. Existing BLE scenarios (bench-era) keep running under the same fixtures.
 
 ## Coordinator topology (locked down 2026-09-02)
 
