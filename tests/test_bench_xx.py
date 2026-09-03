@@ -11,6 +11,14 @@ dispatch, so against a daemon that exchanges no FSP the node tore down a
 healthy link every ~link_dead_timeout. The `handshake_ok == 1` and
 `policy: rejected == 0` asserts below are the regression guard for it.
 
+#196 (2026-09-03) tightened the MMP behavior to upstream semantics: report
+sends are gated on the negotiated provides/wants bits (a Leaf sends
+ReceiverReports only, data-gated to the heartbeat cadence) and the XX wire
+uses next's slim [format_version][total_length] report layout — so the
+daemon parses every report and actually measures RTT. The
+`sender_reports == 0`, `receiver_reports >= 3`, `daemon_malformed == 0`,
+and `daemon_rtt_measured` asserts guard that.
+
 Requires: the microfips bench (s3-lab board + lab AP + .env + esp
 toolchain) AND a prebuilt next-branch daemon worktree (FIPS_NEXT_BIN —
 see microfips AGENTS.md "#193 recipe"; /tmp worktrees are disposable, so
@@ -23,6 +31,7 @@ Run:
 """
 
 import json
+import re
 import time
 
 import pytest
@@ -87,10 +96,15 @@ def test_bench_xx():
             "handshake_ok_count": console.count("handshake ok"),
             "silent_peer_rejections": console.count("policy: rejected"),
             "heartbeats_recv": console.count("steady: heartbeat received from peer"),
+            # #196: against a Full daemon a Leaf sends ReceiverReports only
+            # (negotiated provides/wants gate) — SenderReports are OFF.
             "sender_reports_sent": console.count("sending sender report"),
+            "receiver_reports_sent": console.count("sending receiver report"),
             "daemon_peers": len(peers),
             "daemon_peer_addrs": [p.get("node_addr") for p in peers],
             "daemon_security_violations": daemon_log.count("SecurityViolation"),
+            "daemon_malformed_reports": daemon_log.count("Malformed"),
+            "daemon_rtt_measured": bool(re.search(r"rtt=\d", daemon_log)),
             "steady_window_s": STEADY_WINDOW_SECS,
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
@@ -102,13 +116,18 @@ def test_bench_xx():
         assert verdict["handshake_ok_count"] == 1, verdict
         assert verdict["silent_peer_rejections"] == 0, verdict
         assert verdict["heartbeats_recv"] >= 3, verdict
-        # Presence signature of the 2736f55 fix: the timer-branch reports
-        # were previously sent but invisible (and uncounted).
-        assert verdict["sender_reports_sent"] >= 10, verdict
-        # Daemon side: exactly our node, connected, no violations.
+        # Presence signature of the 2736f55 fix (report sends feed the
+        # policy): the ReceiverReport timer path is the live send channel
+        # since #196 gated SenderReports off for leaves.
+        assert verdict["receiver_reports_sent"] >= 3, verdict
+        assert verdict["sender_reports_sent"] == 0, verdict
+        # Daemon side: exactly our node, connected, no violations, reports
+        # parsed (no Malformed lines) and RTT actually measured from them.
         assert verdict["daemon_peers"] == 1, verdict
         assert S3_LAB_NODE_ADDR in verdict["daemon_peer_addrs"], verdict
         assert verdict["daemon_security_violations"] == 0, verdict
+        assert verdict["daemon_malformed_reports"] == 0, verdict
+        assert verdict["daemon_rtt_measured"], verdict
     finally:
         if tap:
             tap.stop()
