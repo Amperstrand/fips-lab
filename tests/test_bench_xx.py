@@ -87,6 +87,10 @@ def test_bench_xx():
         console = tap.read()
         peers = daemon.peers()
         daemon_log = daemon.log_text()
+        # tracing writes ANSI color codes around structured fields, so
+        # `rtt=` never appears literally in the raw log — strip them
+        # before pattern-matching metric values.
+        daemon_log_plain = re.sub(r"\x1b\[[0-9;]*m", "", daemon_log)
 
         verdict = {
             "scenario": "bench_xx",
@@ -104,7 +108,7 @@ def test_bench_xx():
             "daemon_peer_addrs": [p.get("node_addr") for p in peers],
             "daemon_security_violations": daemon_log.count("SecurityViolation"),
             "daemon_malformed_reports": daemon_log.count("Malformed"),
-            "daemon_rtt_measured": bool(re.search(r"rtt=\d", daemon_log)),
+            "daemon_rtt_measured": bool(re.search(r"rtt=\d", daemon_log_plain)),
             "steady_window_s": STEADY_WINDOW_SECS,
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
