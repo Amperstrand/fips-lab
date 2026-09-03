@@ -113,6 +113,10 @@ def test_l2cap_key_capture():
             )
             daemon.start()
 
+            # One-advert bench: quiesce the peer atom's radio before this
+            # atom flashes (two-atom interference, 2026-09-03).
+            bench.quiesce_peer_radios(bench.MICROFIPS_REPO, ATOM_A_SERIAL)
+
             port = bench.find_board(
                 vidpid=bench.D0WD_VIDPID, serial=ATOM_A_SERIAL,
             )

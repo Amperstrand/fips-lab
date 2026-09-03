@@ -74,6 +74,11 @@ def test_l2cap_bringup():
             )
             daemon.start()
 
+            # One-advert bench: atom-b (or any other attached atom) must be
+            # radio-silent or its central scan steals this atom's single BLE
+            # connection (two-atom interference, 2026-09-03).
+            bench.quiesce_peer_radios(bench.MICROFIPS_REPO, ATOM_A_SERIAL)
+
             port = bench.find_board(
                 vidpid=bench.D0WD_VIDPID, serial=ATOM_A_SERIAL,
             )

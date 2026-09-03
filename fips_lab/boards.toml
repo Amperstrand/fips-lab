@@ -9,7 +9,12 @@
 #   observe  = console-tap only (never flashed by scenarios)
 #
 # Boards deliberately NOT listed (refused for every op):
-#   - M5 Stack Hades2001 (FTDI 0403:6001) — OFF-LIMITS, other project
+#   - M5 Stack Hades2001 (FTDI 0403:6001) — moved off the bench to the
+#     maintainer's laptop (2026-09-03): relay controller for the evmap
+#     charger project, configured from there. Still refused if it
+#     reappears on this bench.
+#   - Micronuts Cashu hardware wallet (CDC-ACM, ttyACM2) — other project
+#   - ACR1252 NFC reader (072f:223b) — bench shared device, not a board
 #   - any board that appears on the bench without an entry here
 
 [boards."F4:12:FA:CF:03:84"]
@@ -46,6 +51,14 @@ notes  = "M5 Atom ESP32-PICO-D4, G*11 lab identity, FTDI 0403:6001 (shared VID:P
 alias  = "atom-b"
 chip   = "esp32"
 ops    = ["flash", "observe"]
-notes  = "M5 Atom ESP32-PICO-D4, G*12 lab identity, FTDI 0403:6001 (shared VID:PID with the off-limits M5 Stack — always pass the serial)"
+notes  = "M5 Atom ESP32-PICO-D4, G*12 lab identity, FTDI 0403:6001; reattached 2026-09-03 and wired to the bench ACR1252 NFC reader (cross-device testing); smoke variant = l2cap"
 
-# CYD: add an entry when its scenario lands (audit #188 c5 needs a second S3 first).
+# Registry key is SYNTHETIC: the CYD's CH340 adapter exposes no USB serial
+# number — identity is the physical port (id_path). If the board moves to a
+# different USB socket, update id_path in hil/devices.py + the exporter
+# token, or detection silently pins the wrong/no device.
+[boards."cyd-ch340"]
+alias  = "cyd"
+chip   = "esp32"
+ops    = ["flash", "observe"]
+notes  = "ESP32-D0WD-V3 LCD board, CH340 1a86:7523, no USB serial — pinned by /dev/serial/by-path; G*10 lab identity (device-registry.json 'cyd')"

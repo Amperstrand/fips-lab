@@ -232,6 +232,7 @@ ARM_TARGET = "thumbv7em-none-eabi"
 D0WD_TARGET = "xtensa-esp32-none-elf"
 D0WD_VIDPID = "0403/6001"  # FTDI — atoms AND the off-limits M5 Stack; serial disambiguates
 D0WD_L2CAP_BIN = "microfips-esp32-l2cap"
+D0WD_UART_BIN = "microfips-esp32"
 
 
 def build_d0wd_l2cap(
@@ -284,6 +285,70 @@ def build_d0wd_l2cap(
     if misses:
         raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
     return binary
+
+
+def build_d0wd_uart(repo: Path, nsec_hex: str) -> Path:
+    """D0WD UART tier: the default (radio-silent) `microfips-esp32` build —
+    no BLE, no WiFi. The quiesce image for peer atoms during L2CAP legs."""
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32",
+         "--release", "--target", D0WD_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "DEVICE_NSEC_HEX_esp32": nsec_hex,
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32 --release --target {D0WD_TARGET} "
+        f"-Zbuild-std=core,alloc --bin {D0WD_UART_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / D0WD_TARGET / "release" / D0WD_UART_BIN
+    if bytes.fromhex(nsec_hex) not in binary.read_bytes():
+        raise RuntimeError("binary verification failed (stale pin?): missing device nsec")
+    return binary
+
+
+# Attached-atom identities for radio quiesce (lab_keygen G*N; the smoke's
+# GENERATOR_MUL is the superset — this map lists the L2CAP-capable atoms
+# that can interfere on hci0).
+QUIESCE_ATOM_MUL = {
+    "81528A13B6": 11,
+    "9D529068B4": 12,
+}
+
+
+def quiesce_peer_radios(repo: Path, exclude_serial: str) -> list[str]:
+    """Flash every OTHER attached atom with the radio-silent UART variant.
+
+    Two-atom interference (evidence 2026-09-03, hil-smoke atom-a leg): an
+    atom running L2CAP firmware central-scans at boot and connects to any
+    FIPS advert in range — including the TARGET atom's peripheral advert.
+    The target's single BLE connection is then held by the peer (dialect
+    tie-breaker deadlock, no exchange) and the lab daemon's probes time
+    out. Quiescing peers to UART (no radio init) restores the one-advert
+    topology every L2CAP scenario was validated under.
+
+    Only touches serials in QUIESCE_ATOM_MUL that are physically attached;
+    flashes happen under the caller's bench lock. Returns the serials
+    quiesced."""
+    quiesced: list[str] = []
+    for serial, mul in QUIESCE_ATOM_MUL.items():
+        if serial == exclude_serial:
+            continue
+        port = find_board(vidpid=D0WD_VIDPID, serial=serial)
+        if port is None:
+            continue
+        binary = build_d0wd_uart(repo, lab_nsec(repo, mul))
+        flash(port, binary, chip="esp32")
+        time.sleep(2)  # boot fully off the radio before the target flashes
+        quiesced.append(serial)
+    return quiesced
 
 
 def find_stm32_cdc() -> Path | None:
