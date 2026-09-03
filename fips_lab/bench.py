@@ -323,31 +323,66 @@ QUIESCE_ATOM_MUL = {
 }
 
 
+def _quiesce_binary(repo: Path, key: str, mul: int) -> Path:
+    """Cached radio-silent UART image per board identity: builds once per
+    process, re-verifies the nsec in the cached file (stale-pin defense),
+    so repeat quiesces cost one flash, not one cargo build."""
+    cache_dir = Path("/tmp/fips-lab-quiesce")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cached = cache_dir / f"{key}-microfips-esp32.bin"
+    nsec = bytes.fromhex(lab_nsec(repo, mul))
+    if cached.exists() and nsec in cached.read_bytes():
+        return cached
+    binary = build_d0wd_uart(repo, lab_nsec(repo, mul))
+    cached.write_bytes(binary.read_bytes())
+    return cached
+
+
 def quiesce_peer_radios(repo: Path, exclude_serial: str) -> list[str]:
-    """Flash every OTHER attached atom with the radio-silent UART variant.
+    """Flash every OTHER attached radio board with the radio-silent UART
+    variant — one quiesce discipline for both interference classes on this
+    bench (2026-09-03, both caught by scenarios the same day):
 
-    Two-atom interference (evidence 2026-09-03, hil-smoke atom-a leg): an
-    atom running L2CAP firmware central-scans at boot and connects to any
-    FIPS advert in range — including the TARGET atom's peripheral advert.
-    The target's single BLE connection is then held by the peer (dialect
-    tie-breaker deadlock, no exchange) and the lab daemon's probes time
-    out. Quiescing peers to UART (no radio init) restores the one-advert
-    topology every L2CAP scenario was validated under.
+    - BLE (atoms): an atom running L2CAP firmware central-scans at boot and
+      connects to any FIPS advert in range — including the TARGET atom's
+      peripheral advert; the target's single BLE connection is then held
+      by the peer and the lab daemon's probes time out.
+    - WiFi (CYD): the CYD's old mdns-open firmware associates on boot and
+      trust-on-first-advert peers with ANY LAN daemon advertising
+      _fips._udp — including scenario daemons (open LAN ACL). It then runs
+      its pre-bbfa864 rekey machinery against them (SecurityViolation
+      teardowns) and perturbs the target session's rekey windows
+      (rekey_soak_long failure 2026-09-03: foreign peer npub15pp5 from
+      192.168.13.203 = CYD G*10, ARP-verified Espressif + console-verified
+      WiFi-mode boot).
 
-    Only touches serials in QUIESCE_ATOM_MUL that are physically attached;
-    flashes happen under the caller's bench lock. Returns the serials
-    quiesced."""
+    Only touches boards physically attached; flashes happen under the
+    caller's bench lock. Returns the serials quiesced."""
+    quiesce_map: dict[str, dict] = {
+        **{serial: {"mul": mul, "vidpid": D0WD_VIDPID, "find": "serial"}
+           for serial, mul in QUIESCE_ATOM_MUL.items()},
+        # id_path duplicated from hil/devices.py USB_IDENTITIES (source of
+        # truth); CH340 has no serial to find by.
+        "cyd-ch340": {
+            "mul": 10, "vidpid": "1a86/7523", "find": "by-path",
+            "id_path": "pci-0000:02:00.0-usb-0:1:1.0-port0",
+        },
+    }
     quiesced: list[str] = []
-    for serial, mul in QUIESCE_ATOM_MUL.items():
-        if serial == exclude_serial:
+    for key, spec in quiesce_map.items():
+        if key == exclude_serial:
             continue
-        port = find_board(vidpid=D0WD_VIDPID, serial=serial)
+        if spec["find"] == "serial":
+            port = find_board(vidpid=spec["vidpid"], serial=key)
+        else:
+            link = Path("/dev/serial/by-path") / spec["id_path"]
+            port = link.resolve() if link.exists() else None
         if port is None:
             continue
-        binary = build_d0wd_uart(repo, lab_nsec(repo, mul))
+        binary = _quiesce_binary(repo, key, spec["mul"])
         flash(port, binary, chip="esp32")
         time.sleep(2)  # boot fully off the radio before the target flashes
-        quiesced.append(serial)
+        quiesced.append(key)
     return quiesced
 
 

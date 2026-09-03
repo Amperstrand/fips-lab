@@ -63,6 +63,12 @@ def test_rekey_soak(rekey_after_secs, request):
         )
         daemon.start()
 
+        # Quiet bench: any other attached radio board (atoms on
+        # L2CAP, CYD on old WiFi firmware) peers with scenario
+        # daemons and perturbs the session under test (2026-09-03,
+        # see bench.quiesce_peer_radios).
+        bench.quiesce_peer_radios(bench.MICROFIPS_REPO, S3_LAB_SERIAL)
+
         # 3. Flash + tap.
         port = bench.find_board(serial=S3_LAB_SERIAL)
         bench.flash(port, binary)

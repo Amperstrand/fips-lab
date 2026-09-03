@@ -49,6 +49,12 @@ def test_link_death_and_reconnect(request):
         daemon = bench.LabDaemon(bench.MICROFIPS_REPO, 3600, run_dir)
         daemon.start()
 
+        # Quiet bench: any other attached radio board (atoms on
+        # L2CAP, CYD on old WiFi firmware) peers with scenario
+        # daemons and perturbs the session under test (2026-09-03,
+        # see bench.quiesce_peer_radios).
+        bench.quiesce_peer_radios(bench.MICROFIPS_REPO, S3_LAB_SERIAL)
+
         port = bench.find_board(serial=S3_LAB_SERIAL)
         bench.flash(port, binary)
         tap = bench.ConsoleTap(port, run_dir / "console.log")

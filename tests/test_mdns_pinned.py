@@ -63,6 +63,12 @@ def test_mdns_pinned_rejects_rogue_advert(request):
             generator_mul=ROGUE_MUL, port=ROGUE_PORT,
         )
         legit.start()
+
+        # Quiet bench: any other attached radio board (atoms on
+        # L2CAP, CYD on old WiFi firmware) peers with scenario
+        # daemons and perturbs the session under test (2026-09-03,
+        # see bench.quiesce_peer_radios).
+        bench.quiesce_peer_radios(bench.MICROFIPS_REPO, S3_LAB_SERIAL)
         rogue.start()
 
         port = bench.find_board(serial=S3_LAB_SERIAL)

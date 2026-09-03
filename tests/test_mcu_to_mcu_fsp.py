@@ -70,6 +70,12 @@ def test_mcu_to_mcu_mesh(request):
         daemon = bench.LabDaemon(bench.MICROFIPS_REPO, 3600, run_dir / "daemon")
         daemon.start()
 
+        # Quiet bench: any other attached radio board (atoms on
+        # L2CAP, CYD on old WiFi firmware) peers with scenario
+        # daemons and perturbs the session under test (2026-09-03,
+        # see bench.quiesce_peer_radios).
+        bench.quiesce_peer_radios(bench.MICROFIPS_REPO, S3_LAB_SERIAL)
+
         # --- STM32: flash via st-flash, then CDC bridge to the daemon ---
         bench.flash_stm32(stm_bin)
         # st-flash reset churns the USB CDC port — poll for enumeration.
