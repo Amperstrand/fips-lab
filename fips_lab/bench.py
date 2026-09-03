@@ -236,6 +236,7 @@ D0WD_L2CAP_BIN = "microfips-esp32-l2cap"
 
 def build_d0wd_l2cap(
     repo: Path, nsec_hex: str, extra_allowed_xonly_hex: str,
+    keylog: bool = False,
 ) -> Path:
     """D0WD L2CAP tier (audit #188 candidate 4): build `microfips-esp32`
     with `--features l2cap`. No WiFi env — the L2CAP transport never
@@ -246,7 +247,11 @@ def build_d0wd_l2cap(
     peer pin is the allowlist knob. It is consumed via option_env! and
     embedded as lowercase ASCII hex (compared at runtime against a
     hex_encode of the exchanged key), so that is the form to verify in
-    the binary (playbook pattern 4)."""
+    the binary (playbook pattern 4).
+
+    `keylog=True` adds the `noise-keylog` feature (#175): the node logs
+    `FIPS_LINK` transport-key lines at handshake + rekey cutover for the
+    btsnoop_decrypt pipeline. LEAKS link keys — bench builds only."""
     subprocess.run(
         ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32",
          "--release", "--target", D0WD_TARGET],
@@ -259,10 +264,11 @@ def build_d0wd_l2cap(
         "FIPS_EXTRA_ALLOWED_XONLY_HEX": extra_allowed_xonly_hex,
         "RUSTUP_TOOLCHAIN": "esp",
     })
+    features = "l2cap,noise-keylog" if keylog else "l2cap"
     cmd = (
         f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
         f"-p microfips-esp32 --release --target {D0WD_TARGET} "
-        f"-Zbuild-std=core,alloc --features l2cap --bin {D0WD_L2CAP_BIN}"
+        f"-Zbuild-std=core,alloc --features {features} --bin {D0WD_L2CAP_BIN}"
     )
     subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
 
@@ -273,6 +279,8 @@ def build_d0wd_l2cap(
         misses.append("extra allowlist xonly (ascii)")
     if bytes.fromhex(nsec_hex) not in data:
         misses.append("device nsec")
+    if keylog and b"FIPS_LINK" not in data:
+        misses.append("FIPS_LINK wiretap marker (noise-keylog feature stale?)")
     if misses:
         raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
     return binary
@@ -375,12 +383,21 @@ class ConsoleTap:
     stops receiving live bytes on FTDI); USB-JTAG ports (S3) ignore baud
     and use raw_tap.py. Neither touches TIOCM, but opening an auto-reset
     board (M5 Atom) can still pulse DTR via the driver — a deterministic
-    fresh boot with the tap attached (playbook pattern 3, amended)."""
+    fresh boot with the tap attached (playbook pattern 3, amended).
+
+    FIPS_LAB_TAP=ftdi|raw overrides the heuristic (tollgate-lab #4: keep
+    the tap the single variable across runs of the same scenario; forcing
+    ftdi without `baud` defaults to 115200)."""
 
     def __init__(self, port: Path, outfile: Path, baud: int | None = None):
         self.outfile = outfile
-        if baud is not None:
-            argv = [sys.executable, str(FTDI_TAP_SCRIPT), str(port), str(outfile), str(baud)]
+        impl = os.environ.get("FIPS_LAB_TAP", "auto").lower()
+        if impl not in ("auto", "ftdi", "raw"):
+            raise ValueError(f"FIPS_LAB_TAP must be auto|ftdi|raw, got {impl!r}")
+        use_ftdi = (baud is not None) if impl == "auto" else (impl == "ftdi")
+        if use_ftdi:
+            argv = [sys.executable, str(FTDI_TAP_SCRIPT), str(port), str(outfile),
+                    str(baud if baud is not None else 115200)]
         else:
             argv = [sys.executable, str(TAP_SCRIPT), str(port), str(outfile)]
         self._proc = subprocess.Popen(

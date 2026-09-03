@@ -35,16 +35,19 @@ HCI_ACL_DATA = 0x02
 PB_FIRST = 0x00
 PB_CONTINUATION = 0x01
 
-# L2CAP signaling CID
+# L2CAP signalling CIDs (BR/EDR 0x0001; BLE LE 0x0005 — LE CoC setup rides
+# the LE signalling CID with credit-based connection codes)
 L2CAP_SIGNALLING_CID = 0x0001
+L2CAP_LE_SIGNALLING_CID = 0x0005
 L2CAP_ATT_CID = 0x0004
-L2CAP_ATT_BLE_CID = 0x0005
 L2CAP_SMP_CID = 0x0006
 L2CAP_DYNAMIC_CID_MIN = 0x0040
 
 # L2CAP signalling command codes
 L2CAP_CONN_REQ = 0x02
 L2CAP_CONN_RESP = 0x03
+L2CAP_LE_CREDIT_CONN_REQ = 0x14
+L2CAP_LE_CREDIT_CONN_RESP = 0x15
 
 # FIPS PSM on Linux
 FIPS_L2CAP_PSM = 133
@@ -315,7 +318,7 @@ def reassemble_acl_packets(
 
     Returns list of L2CAPFrame objects with metadata (data, sent, timestamp_us, conn_handle).
     """
-    buffers: dict[int, bytearray] = []
+    buffers: dict[int, bytearray] = {}
     results: list[L2CAPFrame] = []
     frame_idx = 0
 
@@ -424,7 +427,7 @@ def extract_fips_l2cap_frames(
         cid = struct.unpack("<H", frame_data[2:4])[0]
         payload = frame_data[4:4 + l2cap_len]
 
-        if cid == L2CAP_SIGNALLING_CID:
+        if cid in (L2CAP_SIGNALLING_CID, L2CAP_LE_SIGNALLING_CID):
             _process_signalling(payload, pending, active, ident_to_scid)
             continue
 
@@ -471,23 +474,9 @@ def _detect_fips_cids(
         sdu_len = struct.unpack("<H", payload[0:2])[0]
         content = payload[2:2 + sdu_len]
 
-        offset = 0
-        while offset + 2 <= len(content):
-            ble_len = struct.unpack(">H", content[offset:offset + 2])[0]
-            if ble_len == 0 or offset + 2 + ble_len > len(content):
-                break
-            fmp_data = content[offset + 2:offset + 2 + ble_len]
-            offset += 2 + ble_len
-
-            if len(fmp_data) < COMMON_PREFIX_SIZE:
-                continue
-
-            ver_phase = fmp_data[0]
-            version = (ver_phase >> 4) & 0x0F
-            phase = ver_phase & 0x0F
-
-            if version == FMP_VERSION and phase in (PHASE_ESTABLISHED, PHASE_MSG1, PHASE_MSG2):
-                cid_fmp_hits[cid] = cid_fmp_hits.get(cid, 0) + 1
+        hits = len(_iter_fmp_frames(content))
+        if hits:
+            cid_fmp_hits[cid] = cid_fmp_hits.get(cid, 0) + hits
 
     if not cid_fmp_hits:
         return set()
@@ -515,6 +504,26 @@ def _process_signalling(
             scid = struct.unpack("<H", cmd_data[2:4])[0]
             pending[scid] = L2CAPConnection(psm=psm, scid=scid)
             ident_to_scid[ident] = scid
+
+        elif code == L2CAP_LE_CREDIT_CONN_REQ and len(cmd_data) >= 8:
+            # LE Credit Based Connection Request: [psm:2][scid:2][mtu:2][mps:2][credits:2]
+            psm = struct.unpack("<H", cmd_data[0:2])[0]
+            scid = struct.unpack("<H", cmd_data[2:4])[0]
+            pending[scid] = L2CAPConnection(psm=psm, scid=scid)
+            ident_to_scid[ident] = scid
+
+        elif code == L2CAP_LE_CREDIT_CONN_RESP and len(cmd_data) >= 10:
+            # LE Credit Based Connection Response: [dcid:2][mtu:2][mps:2]
+            # [credits:2][result:2] — no scid field; correlate via ident.
+            dcid = struct.unpack("<H", cmd_data[0:2])[0]
+            result = struct.unpack("<H", cmd_data[8:10])[0]
+            pending_scid = ident_to_scid.pop(ident, None)
+            conn = pending.pop(pending_scid, None) if pending_scid is not None else None
+            if conn is not None and result == 0:
+                conn.dcid = dcid
+                conn.established = True
+                active[dcid] = conn
+                active[conn.scid] = conn
 
         elif code == L2CAP_CONN_RESP and len(cmd_data) >= 8:
             dcid = struct.unpack("<H", cmd_data[0:2])[0]
@@ -544,6 +553,57 @@ def _process_signalling(
 # FMP Frame Parsing
 # ============================================================================
 
+def _valid_fmp(data: bytes) -> bool:
+    """Exact FMP frame check: version 0, known phase, length consistency.
+
+    Length invariants differ by phase (verified against wire captures):
+    - handshake (MSG1/MSG2): len == 4 + payload_len;
+    - established: len == 32 + payload_len — the 16-byte AEAD outer header
+      INCLUDES the 4-byte common prefix, and payload_len counts the
+      PLAINTEXT (ciphertext adds the 16-byte tag).
+    These exact checks are the dialect discriminator: a legacy-prefixed
+    segment misparsed as raw fails them (its first bytes are a BE length,
+    not an FMP header), and vice versa.
+    """
+    if len(data) < COMMON_PREFIX_SIZE:
+        return False
+    ver_phase = data[0]
+    if (ver_phase >> 4) & 0x0F != FMP_VERSION:
+        return False
+    phase = ver_phase & 0x0F
+    if phase not in (PHASE_ESTABLISHED, PHASE_MSG1, PHASE_MSG2):
+        return False
+    payload_len = struct.unpack("<H", data[2:4])[0]
+    wire_payload = (32 + payload_len) if phase == PHASE_ESTABLISHED else 4 + payload_len
+    return len(data) == wire_payload
+
+
+def _iter_fmp_frames(content: bytes) -> list[bytes]:
+    """Extract FMP frame byte-spans from one L2CAP CoC SDU's content.
+
+    Both BLE transport dialects (AGENTS.md "fips master dialect"):
+    - master (flags-less 33B exchange): the whole content is ONE raw FMP
+      frame — no transport prefix, one frame per SDU;
+    - legacy: one or more [fmp_len:2 BE][fmp_data] segments.
+    The pre-handshake pubkey exchange ([0x00][32B x-only], 33B) matches
+    neither and is skipped by validation.
+    """
+    if _valid_fmp(content):
+        return [content]
+
+    spans: list[bytes] = []
+    offset = 0
+    while offset + 2 <= len(content):
+        ble_len = struct.unpack(">H", content[offset:offset + 2])[0]
+        if ble_len == 0 or offset + 2 + ble_len > len(content):
+            break
+        fmp_data = content[offset + 2:offset + 2 + ble_len]
+        offset += 2 + ble_len
+        if _valid_fmp(fmp_data):
+            spans.append(fmp_data)
+    return spans
+
+
 def parse_fmp_frames(
     l2cap_payloads: list[FipsL2CAPFrame],
 ) -> list[FmpFrameWithMetadata]:
@@ -551,10 +611,9 @@ def parse_fmp_frames(
 
     L2CAP CoC SDU format (as captured by btmon on Linux):
       [sdu_len:2 LE][content:sdu_len]
-    Where content is one or more concatenated BLE transport frames:
-      [fmp_len:2 BE][fmp_data:fmp_len]
-    Each fmp_data is an FMP packet with common prefix:
-      [ver(4bits)+phase(4bits)][flags:1][payload_len:2 LE]
+    Content is a single raw FMP frame (master dialect) or concatenated
+    [fmp_len:2 BE][fmp_data:fmp_len] segments (legacy dialect) — see
+    _iter_fmp_frames.
     """
     frames: list[FmpFrameWithMetadata] = []
 
@@ -567,32 +626,14 @@ def parse_fmp_frames(
         sdu_len = struct.unpack("<H", payload[0:2])[0]
         content = payload[2:2 + sdu_len]
 
-        offset = 0
-        while offset + 2 <= len(content):
-            ble_len = struct.unpack(">H", content[offset:offset + 2])[0]
-            if ble_len == 0 or offset + 2 + ble_len > len(content):
-                break
-            fmp_data = content[offset + 2:offset + 2 + ble_len]
-            offset += 2 + ble_len
-
-            if len(fmp_data) < COMMON_PREFIX_SIZE:
-                continue
-
+        for fmp_data in _iter_fmp_frames(content):
             ver_phase = fmp_data[0]
-            version = (ver_phase >> 4) & 0x0F
-            phase = ver_phase & 0x0F
-            flags = fmp_data[1]
-            payload_len = struct.unpack("<H", fmp_data[2:4])[0]
-
-            if version != FMP_VERSION:
-                continue
-
             frames.append(FmpFrameWithMetadata(
                 fmp_frame=FmpFrame(
-                    phase=phase,
-                    version=version,
-                    flags=flags,
-                    payload_len=payload_len,
+                    phase=ver_phase & 0x0F,
+                    version=(ver_phase >> 4) & 0x0F,
+                    flags=fmp_data[1],
+                    payload_len=struct.unpack("<H", fmp_data[2:4])[0],
                     raw=fmp_data,
                 ),
                 sent=sent,
