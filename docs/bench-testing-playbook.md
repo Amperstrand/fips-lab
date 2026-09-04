@@ -168,6 +168,56 @@ The daemon's first rekey rotation has p ≈ 0.35–0.43 per node rotation;
 asserting it at a 120 s window failed on the tail, ≥360 s makes
 zero vanishingly unlikely.
 
+### 12. Bench exclusivity: the shared flock FIRST (2026-09-04, microfips #199)
+Two same-user agent sessions collided twice within 20 minutes (lab-daemon
+port bind + shared cargo `target/` race). Root cause: THREE disjoint lock
+layers, none covering the real case — `HardwareLock` is same-user-permissive
+BY DESIGN (multi-user scoping, not multi-session), the labgrid place only
+excludes labgrid-aware callers, per-harness flocks only exclude their own
+harness. Rule: every harness takes `tollgate_lab.acquire_bench_lock(
+"amperstrand-bench")` FIRST (kernel flock — crash-safe, released when the
+holder dies, holder identity in the file), then its place/legacy locks,
+NEVER the reverse (AB-BA ordering). Adopted: fips-lab
+`acquire_board_lock`, microfips hil `rig_lock`. Proven live: bench-nightly
+held it through a full 36:31 green run while another session worked.
+
+### 13. One-quiet-bench: quiesce peer radios (2026-09-03)
+Two interference classes, both caught by scenarios the same day:
+(a) BLE — an atom running L2CAP firmware central-scans at boot and steals
+the TARGET atom's single BLE connection (dialect tie-breaker stall; the
+lab daemon's probes time out); (b) WiFi — a board running old mdns-open
+firmware trust-on-first-advert peers with ANY scenario daemon on the LAN
+(open ACL) and its pre-fix rekey machinery perturbs the session under test
+(the `rekey_soak_long` full-window failure: foreign peer from the CYD).
+Rule: every scenario that starts a daemon or uses a radio calls
+`bench.quiesce_peer_radios(repo, target_serial)` — all OTHER attached
+radio boards get flashed with the radio-silent UART variant (cached per
+identity: repeat quiesces cost a flash, not a cargo build).
+
+### 14. Chaos scenarios: the unknown-unknowns net (2026-09-04)
+`fips_lab.chaos.FrameStorm` — a rate-limited stream of malformed frames
+(several classes: junk, bad-version, protocol-shaped random, oversized,
+empty) aimed at EITHER or BOTH endpoints while asserting the live link
+doesn't notice. First hardware run caught Amperstrand/fips#154: the
+daemon tore down a LIVE peer on epoch mismatch and re-promoted a session
+the node never started, while heartbeats starved — node firmware stayed
+clean. Rules: chaos operators are hypothesis generators — a fault found
+graduates into its own named scenario with a minimal reproducer; the chaos
+test's assertions stay HONEST (a failing chaos test IS the finding — never
+weaken it to green); rate-limit by design (correctness probe, not a
+bandwidth DoS — a volume test needs its own safety case).
+
+### 15. Per-board labgrid places as state records (2026-09-04)
+`microfips-<alias>` places on the shared coordinator (created by
+`labgrid-place.sh`) carry `firmware=/test=/owner=/ts=` tags, mirrored at
+every flash by hil `board_role` via `fips_lab.note_board_state` (advisory
+— the local board-roles ledger stays the durable record). NEVER acquired
+for exclusivity (that's pattern 12 + the bench place) — they are
+documentation. Any project, any machine: `labgrid-client -p
+microfips-atom-a show` answers "what runs there and who put it there";
+`make hil-status` consolidates. The same tags are the desired-state store
+for the OTA design (microfips #200).
+
 ## Scenario backlog (microfips bench, in priority order)
 
 LIVE and green (2026-09-02, 8 scenarios; 94 tests collect): `test_rekey_soak`
@@ -219,6 +269,7 @@ refused, cloud-LAB interface refused, lab interface serves.
 |---|---|---|
 | microfips | The bench inventory + security checklist; wire-format lessons | This playbook's graduation discipline |
 | fips-lab | Drivers, pytest suite, results publishing (tests.tollgate.me) | microfips bench targets + WiFi-path scenarios |
-| tollgate-lab | Shared flash/lock/serial library | The no-reset tap + binary-verification patterns (via fips-lab #3) |
+| tollgate-lab | Shared flash/lock/serial library; BenchLock (pattern 12) | The no-reset tap + binary-verification patterns (via fips-lab #3) |
+| bolty-rs | The HIL pattern microfips tools/hil adapted (#191); ACR1252 token pattern | BenchLock in tools/hil conftest — the last #199-class gap on this bench (recipe: microfips d7e3e39; issue filed) |
 | PRta | Venues, locks, `results/<run_id>/`, plan-doc culture | The graduation principle for its backend-matrix tests |
-| hackathon-tooling | CI templates | Bench-nightly job once scenarios exist |
+| hackathon-tooling | CI templates + checklists (incl. rust-release-profile-pitfalls, from this bench arc) | Bench-nightly job — LIVE and green since 2026-09-04 (PATH fix shipped in the template) |
