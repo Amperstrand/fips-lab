@@ -13,7 +13,6 @@
 #     maintainer's laptop (2026-09-03): relay controller for the evmap
 #     charger project, configured from there. Still refused if it
 #     reappears on this bench.
-#   - Micronuts Cashu hardware wallet (CDC-ACM, ttyACM2) — other project
 #   - ACR1252 NFC reader (072f:223b) — bench shared device, not a board
 #   - any board that appears on the bench without an entry here
 
@@ -62,3 +61,14 @@ alias  = "cyd"
 chip   = "esp32"
 ops    = ["flash", "observe"]
 notes  = "ESP32-D0WD-V3 LCD board, CH340 1a86:7523, no USB serial — pinned by /dev/serial/by-path; G*10 lab identity (device-registry.json 'cyd')"
+
+# Enrolled 2026-09-04 (bench-enrollment bundle). Another project's board:
+# their firmware, their flashes (st-flash, same toolchain as f469-mcu);
+# FIPS scenarios observe only. Their sessions take BenchLock
+# ('amperstrand-bench') — see checklists/bench-enrollment.md in
+# hackathon-tooling. State place: microfips-micronuts-wallet.
+[boards."F4691"]
+alias  = "micronuts-wallet"
+chip   = "stm32f469"
+ops    = ["flash", "observe"]
+notes  = "Micronuts Cashu hardware wallet, CDC-ACM 16c0:27dd (ttyACM2); FIPS-sidecar ADR binds the integration — coordinate with the micronuts session before flashing"
