@@ -83,6 +83,7 @@ def _node_udp_endpoint(daemon_log: str) -> tuple[str, int]:
 
 @pytest.mark.hardware
 @pytest.mark.flash
+@pytest.mark.slow
 @pytest.mark.timeout(900)
 def test_chaos_fuzz_storm():
     skip = bench.bench_available(S3_LAB_SERIAL)
