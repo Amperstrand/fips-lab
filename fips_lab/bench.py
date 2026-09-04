@@ -207,14 +207,24 @@ def verify_knob(binary: Path, marker: str) -> None:
 
 
 def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP,
-          chip: str = "esp32s3") -> None:
+          chip: str = "esp32s3", registry_serial: str | None = None) -> None:
     """Flash with port-lifecycle discipline: reader first, then fuser.
     Refuses boards not registered for 'flash' in boards.toml. `chip`
     selects the espflash target (esp32s3 default; esp32 for the D0WD
-    atoms)."""
+    atoms). `registry_serial` is REQUIRED for serial-less boards (the
+    CYD's CH340): with no sysfs serial there is nothing to derive the
+    registry key from, and a bare serial-less port would otherwise flash
+    UNCHECKED — pass the synthetic boards.toml key explicitly."""
     serial = _serial_of(port)
     if serial:
         require_board(serial, "flash")
+    elif registry_serial:
+        require_board(registry_serial, "flash")
+    else:
+        raise BoardError(
+            f"refusing to flash serial-less port {port} without registry_serial "
+            "(no sysfs serial → registry gate cannot run; pass the boards.toml key)"
+        )
     for tap_name in ("raw_tap.py", "ftdi_tap.py"):
         subprocess.run(
             ["pkill", "-f", f"{tap_name} {port}"], capture_output=True,
@@ -316,6 +326,54 @@ def build_d0wd_uart(repo: Path, nsec_hex: str) -> Path:
     return binary
 
 
+D0WD_WIFI_BIN = "microfips-esp32-wifi"
+
+
+def build_d0wd_wifi(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
+    """D0WD WiFi tier (CYD smoke leg): `microfips-esp32 --features wifi`.
+    Same pin set as the S3 wifi build (build_firmware) — SSID, pinned
+    npub, device nsec — verified in the binary before any hardware sees
+    it. The D0WD identity knob is DEVICE_NSEC_HEX_esp32 (the esp32
+    registry entry), like the other D0WD tiers."""
+    wifi = load_dotenv(repo)
+    if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
+        raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
+
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32",
+         "--release", "--target", D0WD_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "WIFI_SSID": wifi["WIFI_SSID"],
+        "WIFI_PASSWORD": wifi["WIFI_PASSWORD"],
+        "DEVICE_NPUB_HEX_vps": npub_hex,
+        "DEVICE_NSEC_HEX_esp32": nsec_hex,
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32 --release --target {D0WD_TARGET} "
+        f"-Zbuild-std=core,alloc --features wifi --bin {D0WD_WIFI_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / D0WD_TARGET / "release" / D0WD_WIFI_BIN
+    data = binary.read_bytes()
+    misses = []
+    if wifi["WIFI_SSID"].encode() not in data:
+        misses.append("WIFI_SSID")
+    if bytes.fromhex(npub_hex) not in data:
+        misses.append("pinned npub")
+    if bytes.fromhex(nsec_hex) not in data:
+        misses.append("device nsec")
+    if misses:
+        raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
+    return binary
+
+
 # Attached-atom identities for radio quiesce (lab_keygen G*N; the smoke's
 # GENERATOR_MUL is the superset — this map lists the L2CAP-capable atoms
 # that can interfere on hci0).
@@ -382,7 +440,7 @@ def quiesce_peer_radios(repo: Path, exclude_serial: str) -> list[str]:
         if port is None:
             continue
         binary = _quiesce_binary(repo, key, spec["mul"])
-        flash(port, binary, chip="esp32")
+        flash(port, binary, chip="esp32", registry_serial=key)
         time.sleep(2)  # boot fully off the radio before the target flashes
         quiesced.append(key)
     return quiesced
@@ -820,9 +878,19 @@ def make_run_dir(label: str) -> Path:
     return run_dir
 
 
-def bench_available(board_serial: str, vidpid: str = S3_VIDPID) -> str | None:
-    """Return a skip-reason if the bench can't run, else None."""
-    if find_board(vidpid=vidpid, serial=board_serial) is None:
+def bench_available(
+    board_serial: str, vidpid: str = S3_VIDPID,
+    id_path: str | None = None,
+) -> str | None:
+    """Return a skip-reason if the bench can't run, else None.
+
+    `id_path` is for serial-less boards (CYD/CH340): the boards.toml key
+    cannot appear as a sysfs serial, so attachment is the by-path link
+    instead of find_board's serial match."""
+    if id_path is not None:
+        if not (Path("/dev/serial/by-path") / id_path).exists():
+            return f"bench board {board_serial} not attached (by-path {id_path} absent)"
+    elif find_board(vidpid=vidpid, serial=board_serial) is None:
         return f"bench board {board_serial} not attached"
     if not (MICROFIPS_REPO / ".env").exists():
         return "microfips .env missing"
