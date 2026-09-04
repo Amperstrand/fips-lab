@@ -22,13 +22,15 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from tollgate_lab import HardwareLock
+from tollgate_lab import BenchLock, BenchLockHeldError, HardwareLock, acquire_bench_lock
 from tollgate_lab.reservation import BoardReservation
 
 MICROFIPS_REPO = Path(os.environ.get("MICROFIPS_REPO", "~/src/microfips")).expanduser()
 BOARDS_TOML = Path(__file__).resolve().parent / "boards.toml"
 FIPS_BIN = Path(os.environ.get("FIPS_BIN", "~/src/fips/target/release/fips")).expanduser()
 EXPORT_ESP = Path(os.environ.get("EXPORT_ESP", "~/export-esp.sh")).expanduser()
+LABGRID_COORDINATOR = os.environ.get("LABGRID_COORDINATOR", "192.168.13.221:20408")
+_DEFAULT_LG_COORD = LABGRID_COORDINATOR
 S3_TARGET = "xtensa-esp32s3-none-elf"
 S3_VIDPID = "303a/1001"
 RESULTS_ROOT = Path(__file__).resolve().parent.parent / "results"
@@ -384,6 +386,46 @@ def quiesce_peer_radios(repo: Path, exclude_serial: str) -> list[str]:
         time.sleep(2)  # boot fully off the radio before the target flashes
         quiesced.append(key)
     return quiesced
+
+
+def _board_alias(serial: str) -> str:
+    """Alias for a registry serial from fips_lab/boards.toml (the contract
+    both repos read — no second name map to drift)."""
+    import tomllib
+    path = Path(__file__).resolve().parent / "boards.toml"
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+        return data.get("boards", {}).get(serial, {}).get("alias", serial)
+    except (OSError, tomllib.TOMLDecodeError):
+        return serial
+
+
+def note_board_state(serial: str, firmware: str, test: str = "",
+                     owner: str = "") -> bool:
+    """Mirror a board's current firmware/test/owner onto its per-board
+    labgrid place tags (`microfips-<alias>`), visible to every project and
+    machine via `labgrid-client -p microfips-<alias> show`. Best-effort:
+    a down coordinator or missing place must never fail a scenario — the
+    local board-roles ledger stays the durable record."""
+    place = f"microfips-{_board_alias(serial)}"
+    tags = [
+        f"firmware={firmware or '-'}",
+        f"test={test or '-'}",
+        f"owner={owner or '-'}",
+        f"ts={time.strftime('%Y%m%dT%H%M%S')}",
+    ]
+    try:
+        # env read at CALL time (not import) so tests/overrides can retarget
+        coord = os.environ.get("LABGRID_COORDINATOR", _DEFAULT_LG_COORD)
+        result = subprocess.run(
+            ["labgrid-client", "-x", coord, "-p", place,
+             "set-tags", *tags],
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def find_stm32_cdc() -> Path | None:
@@ -791,13 +833,30 @@ def bench_available(board_serial: str, vidpid: str = S3_VIDPID) -> str | None:
     return None
 
 
-def acquire_board_lock(name: str = "microfips-bench"):
-    """Cross-project hardware lock (tollgate-lab). Prefer
-    BoardReservation for board-level, cross-project coordination —
-    this remains for session-scoped locking."""
-    lock = HardwareLock(name)
-    lock.acquire()
-    return lock
+def acquire_board_lock(name: str = "microfips-bench", project: str = "fips-lab"):
+    """Session-scoped bench exclusivity, two layers (#199 fix):
+
+    1. BenchLock — kernel flock, cross-project and CROSS-SESSION for the
+       same unix user (the blue-on-blue case: HardwareLock is
+       same-user-permissive by design and never serialized two of our
+       agent sessions; two collisions on 2026-09-03). Taken FIRST —
+       composite-lock ordering rule, never reverse it.
+    2. HardwareLock — the legacy multi-USER file lock (kept for other
+       tollgate consumers that read hardware.lock).
+
+    Raises BenchLockHeldError naming the holder when the flock is taken;
+    release() frees both."""
+    bench = acquire_bench_lock("amperstrand-bench", project=project,
+                               cwd=str(Path(__file__).resolve().parent))
+    legacy = HardwareLock(name)
+    legacy.acquire()
+
+    class _Composite:
+        def release(self):
+            legacy.release()
+            bench.release()
+
+    return _Composite()
 
 
 def reserve_board(serial: str, project: str = "microfips", ttl_secs: int = 1800):
