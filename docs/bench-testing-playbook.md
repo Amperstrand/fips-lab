@@ -270,6 +270,6 @@ refused, cloud-LAB interface refused, lab interface serves.
 | microfips | The bench inventory + security checklist; wire-format lessons | This playbook's graduation discipline |
 | fips-lab | Drivers, pytest suite, results publishing (tests.tollgate.me) | microfips bench targets + WiFi-path scenarios |
 | tollgate-lab | Shared flash/lock/serial library; BenchLock (pattern 12) | The no-reset tap + binary-verification patterns (via fips-lab #3) |
-| bolty-rs | The HIL pattern microfips tools/hil adapted (#191); ACR1252 token pattern | BenchLock in tools/hil conftest — the last #199-class gap on this bench (recipe: microfips d7e3e39; issue filed) |
+| bolty-rs | The HIL pattern microfips tools/hil adapted (#191); ACR1252 token pattern | ~~BenchLock adoption~~ DONE — bolty-rs #85 / `281e73a` (2026-09-04, upstream-grounded); all three harnesses now serialize on the flock |
 | PRta | Venues, locks, `results/<run_id>/`, plan-doc culture | The graduation principle for its backend-matrix tests |
 | hackathon-tooling | CI templates + checklists (incl. rust-release-profile-pitfalls, from this bench arc) | Bench-nightly job — LIVE and green since 2026-09-04 (PATH fix shipped in the template) |
