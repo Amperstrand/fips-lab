@@ -58,6 +58,7 @@ def test_rekey_soak(rekey_after_secs, request):
         #    up before boot, or it falls back to the compiled-in VPS target.
         daemon = bench.LabDaemon(
             bench.MICROFIPS_REPO, rekey_after_secs, run_dir,
+            nsec_hex=ids.nsec("daemon"),
         )
         daemon.start()
 

@@ -71,6 +71,7 @@ def test_rekey_soak_long(request):
 
         daemon = bench.LabDaemon(
             bench.MICROFIPS_REPO, DAEMON_REKEY_AFTER_SECS, run_dir,
+            nsec_hex=ids.nsec("daemon"),
         )
         daemon.start()
 
