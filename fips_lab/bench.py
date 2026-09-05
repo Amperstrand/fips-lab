@@ -632,6 +632,72 @@ class ConsoleTap:
             self._proc.kill()
 
 
+def _proc_cmdline(pid: int) -> str:
+    try:
+        return Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode(
+            errors="replace"
+        ).strip()
+    except OSError:
+        return ""
+
+
+def _udp_port_holder(ip: str, port: int) -> tuple[int, str] | None:
+    """(pid, process_name) of the process holding the UDP bind, or None.
+
+    fips-lab #9: a stale scenario daemon squatting the lab bind used to
+    surface three layers deep ('no operational transports' -> daemon log
+    tail -> EADDRINUSE). This resolves the holder directly from ss."""
+    out = subprocess.run(
+        ["ss", "-ulnp"], capture_output=True, text=True,
+    ).stdout
+    needle = f"{ip}:{port}"
+    for line in out.splitlines():
+        # ss columns: State Recv-Q Send-Q LOCAL:PORT PEER process
+        fields = line.split()
+        if len(fields) < 5 or fields[3] != needle:
+            continue
+        m = re.search(r'users:\(\("([^"]+)",pid=(\d+),fd=\d+\)\)', line)
+        if m:
+            return int(m.group(2)), m.group(1)
+        return None
+    return None
+
+
+# A scenario daemon runs with its config under a results/<run_id>/ dir —
+# minutes-scale by construction, so one found holding the lab bind later
+# is stale by definition. The system daemon (/etc/fips) and the standard
+# lab daemon (/tmp/opencode) never match this pattern.
+def _is_stale_scenario_daemon(pid: int) -> bool:
+    cmd = _proc_cmdline(pid)
+    return "fips" in cmd and "--config" in cmd and "/results/" in cmd
+
+
+def kill_stale_lab_daemon(ip: str = "192.168.13.221", port: int = 21213) -> list[int]:
+    """Reap a stale scenario daemon holding the lab bind (fips-lab #9):
+    SIGTERM (5 s) then SIGKILL, exact-PID only. REFUSES — RuntimeError
+    naming the holder — anything that is not a fips process whose config
+    lives under a results/ dir; the sweep never kills blind."""
+    holder = _udp_port_holder(ip, port)
+    if holder is None:
+        return []
+    pid, name = holder
+    if not _is_stale_scenario_daemon(pid):
+        raise RuntimeError(
+            f"bind {ip}:{port} held by pid {pid} ({name}: {_proc_cmdline(pid)}) "
+            "which is NOT a stale scenario daemon — refusing to kill; inspect it"
+        )
+    subprocess.run(["kill", str(pid)], capture_output=True)
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and Path(f"/proc/{pid}").exists():
+        time.sleep(0.2)
+    if Path(f"/proc/{pid}").exists():
+        subprocess.run(["kill", "-9", str(pid)], capture_output=True)
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and Path(f"/proc/{pid}").exists():
+            time.sleep(0.2)
+    return [pid]
+
+
 class LabDaemon:
     """Isolated lab daemon with a scenario config; restores the standard
     lab daemon on exit if one was running (run_lab_daemon.sh semantics:
@@ -647,6 +713,7 @@ class LabDaemon:
         generator_mul: int = 8,
         port: int = 21213,
         ble: bool = False,
+        bind_ip: str = "192.168.13.221",
     ):
         """`generator_mul` selects the daemon identity (lab_keygen G*N) and
         `port` the UDP bind — a second instance with a different mul/port is
@@ -659,6 +726,7 @@ class LabDaemon:
         self.generator_mul = generator_mul
         self.port = port
         self.ble = ble
+        self.bind_ip = bind_ip
         workdir.mkdir(parents=True, exist_ok=True)
         self.config = workdir / "daemon.yaml"
         self.log = workdir / "daemon.log"
@@ -683,11 +751,25 @@ class LabDaemon:
         while time.monotonic() < deadline and self._pids_for(self.STANDARD_CONFIG):
             time.sleep(0.5)
 
+        # Pre-flight the bind (fips-lab #9): name any holder NOW instead of
+        # surfacing EADDRINUSE three layers deep in the daemon log after a
+        # wasted spawn+20s readiness wait.
+        holder = _udp_port_holder(self.bind_ip, self.port)
+        if holder is not None:
+            hpid, hname = holder
+            raise RuntimeError(
+                f"lab UDP bind {self.bind_ip}:{self.port} already held by pid "
+                f"{hpid} ({hname}: {_proc_cmdline(hpid)}) — refusing to start. "
+                "If it is a stale scenario daemon (config under results/), "
+                "reap it: python3 -c 'from fips_lab import bench; "
+                "bench.kill_stale_lab_daemon()'"
+            )
+
         template = (self.repo / "tools/fips-lab.yaml").read_text()
         nsec = lab_daemon_nsec(self.repo, self.generator_mul)
         cfg = template.replace("__LAB_DAEMON_NSEC__", nsec)
-        if self.port != 21213:
-            cfg = cfg.replace("192.168.13.221:21213", f"192.168.13.221:{self.port}")
+        if (self.bind_ip, self.port) != ("192.168.13.221", 21213):
+            cfg = cfg.replace("192.168.13.221:21213", f"{self.bind_ip}:{self.port}")
         # Injection order matters: the rekey block must nest under `node:`,
         # so it goes FIRST — the control block then lands at top level
         # before `transports:` (both anchor on the same marker; reversing
