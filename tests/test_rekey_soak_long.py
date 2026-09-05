@@ -30,9 +30,6 @@ import pytest
 from fips_lab import bench
 
 S3_LAB_SERIAL = "F4:12:FA:CF:03:84"
-LAB_DAEMON_NPUB = (
-    "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01"
-)
 NODE_REKEY_AFTER_SECS = 20
 DAEMON_REKEY_AFTER_SECS = 32
 NODE_CYCLE_SECS = 33  # dampening-inclusive upper bound (2026-09-02 model)
@@ -59,14 +56,15 @@ def test_rekey_soak_long(request):
         pytest.skip(skip)
 
     run_dir = bench.make_run_dir("rekey-soak-long")
+    ids = bench.BenchIdentities(bench.MICROFIPS_REPO)
     lock = bench.acquire_board_lock()
     tap = None
     daemon = None
     try:
         binary = bench.build_firmware(
             bench.MICROFIPS_REPO,
-            npub_hex=LAB_DAEMON_NPUB,
-            nsec_hex="00" * 31 + "09",
+            npub_hex=ids.npub("daemon"),
+            nsec_hex=ids.nsec("s3-lab"),
             extra_env={"REKEY_AFTER_SECS": str(NODE_REKEY_AFTER_SECS)}
             | bench.lab_static_target_env(),
         )
@@ -111,6 +109,7 @@ def test_rekey_soak_long(request):
             "node_alive": "steady: recv returned" in console[-2000:],
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
+        ids.save(run_dir)
 
         assert verdict["rekey_initiated"] >= ROTATION_FLOOR, verdict
         assert verdict["rekey_msg1_received"] >= DAEMON_ROTATION_FLOOR, verdict

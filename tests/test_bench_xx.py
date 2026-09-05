@@ -39,7 +39,6 @@ import pytest
 from fips_lab import bench
 
 S3_LAB_SERIAL = "F4:12:FA:CF:03:84"
-S3_LAB_NODE_ADDR = "1c6ad0339ceb13433701dc6b4349363a"  # G*9 (registry)
 XX_DAEMON_MUL = 22
 STEADY_WINDOW_SECS = 90  # >= 2x the pre-fix ~33s churn + hb margin
 
@@ -53,7 +52,10 @@ def test_bench_xx():
         pytest.skip(skip)
 
     run_dir = bench.make_run_dir("bench-xx")
-    daemon = bench.BenchXxDaemon(bench.MICROFIPS_REPO, run_dir, generator_mul=XX_DAEMON_MUL)
+    ids = bench.BenchIdentities(bench.MICROFIPS_REPO)
+    daemon = bench.BenchXxDaemon(
+            bench.MICROFIPS_REPO, run_dir, nsec_hex=ids.nsec("daemon")
+        )
     xx_skip = daemon.available()
     if xx_skip:
         pytest.skip(xx_skip)
@@ -67,12 +69,12 @@ def test_bench_xx():
         #    (FIPS_FSP_TARGET_* knobs, microfips) instead of the STM32 mesh
         #    default — the session layer's first hardware proof (the link
         #    layer was #193; the session layer was sim-only until now).
-        xx_npub = bench.lab_npub(bench.MICROFIPS_REPO, XX_DAEMON_MUL)
-        xx_addr = bench.lab_node_addr(bench.MICROFIPS_REPO, XX_DAEMON_MUL)
+        xx_npub = ids.npub("daemon")
+        xx_addr = ids.node_addr("daemon")
         binary = bench.build_firmware(
             bench.MICROFIPS_REPO,
             npub_hex=xx_npub,
-            nsec_hex="00" * 31 + "09",  # s3-lab board identity (G*9)
+            nsec_hex=ids.nsec("s3-lab"),
             features="noise-xx",
             extra_env={
                 "FIPS_FSP_TARGET_NPUB_HEX": xx_npub,
@@ -147,6 +149,7 @@ def test_bench_xx():
             "steady_window_s": STEADY_WINDOW_SECS,
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
+        ids.save(run_dir)
 
         assert verdict["pinned_discovery"] >= 1, verdict
         assert verdict["fmp_negotiation_agreed"] >= 1, verdict
@@ -163,7 +166,7 @@ def test_bench_xx():
         # Daemon side: exactly our node, connected, no violations, reports
         # parsed (no Malformed lines) and RTT actually measured from them.
         assert verdict["daemon_peers"] == 1, verdict
-        assert S3_LAB_NODE_ADDR in verdict["daemon_peer_addrs"], verdict
+        assert ids.node_addr("s3-lab") in verdict["daemon_peer_addrs"], verdict
         assert verdict["daemon_security_violations"] == 0, verdict
         assert verdict["daemon_malformed_reports"] == 0, verdict
         assert verdict["daemon_rtt_measured"], verdict

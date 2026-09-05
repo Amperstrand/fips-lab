@@ -22,9 +22,6 @@ import pytest
 from fips_lab import bench
 
 S3_LAB_SERIAL = "F4:12:FA:CF:03:84"
-LAB_DAEMON_NPUB = (
-    "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01"
-)
 @pytest.mark.hardware
 @pytest.mark.flash
 @pytest.mark.parametrize(
@@ -43,8 +40,8 @@ def test_rekey_soak(rekey_after_secs, request):
     if skip:
         pytest.skip(skip)
 
-    node_nsec = _node_nsec_for_s3lab()
     run_dir = bench.make_run_dir(f"rekeysoak-{request.node.callspec.id}")
+    ids = bench.BenchIdentities(bench.MICROFIPS_REPO)
     lock = bench.acquire_board_lock()
     tap = None
     daemon = None
@@ -52,8 +49,8 @@ def test_rekey_soak(rekey_after_secs, request):
         # 1. Verified build (raises on stale pins before touching hardware).
         binary = bench.build_firmware(
             bench.MICROFIPS_REPO,
-            npub_hex=LAB_DAEMON_NPUB,
-            nsec_hex=node_nsec,
+            npub_hex=ids.npub("daemon"),
+            nsec_hex=ids.nsec("s3-lab"),
             extra_env=bench.lab_static_target_env(),
         )
 
@@ -102,6 +99,7 @@ def test_rekey_soak(rekey_after_secs, request):
             "node_alive": "steady: recv returned" in console[-2000:],
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
+        ids.save(run_dir)
 
         assert verdict["cutover_complete"] >= 2, verdict
         assert verdict["rekey_msg1_received"] >= 2, verdict
@@ -117,8 +115,3 @@ def test_rekey_soak(rekey_after_secs, request):
         if daemon:
             daemon.stop()
         lock.release()
-
-
-def _node_nsec_for_s3lab() -> str:
-    """s3-lab identity = generator*9 (registry): 31 zero bytes + 0x09."""
-    return "00" * 31 + "09"

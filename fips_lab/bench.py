@@ -148,6 +148,64 @@ def lab_daemon_nsec(repo: Path, generator_mul: int = 8) -> str:
     return lab_nsec(repo, generator_mul)
 
 
+class BenchIdentities:
+    """Per-run bench identities (#206-class): fresh, high-entropy keys each
+    scenario run, derived from a random seed via `lab_keygen.py --seed`.
+
+    Why: every G*N bench key is publicly derivable (the registry and
+    AGENTS.md publish the convention), and test results get PUBLISHED —
+    verdicts, console logs, issue comments routinely carry npubs/node
+    addrs. With per-run identities, published material only ever contains
+    single-use keys that are dead when the run ends; spoofing a bench node
+    requires the live run's seed (local to the workstation, in the run
+    dir) instead of public knowledge.
+
+    The seed + label->npub/addr map is recorded in the run dir
+    (`identities.json`) for post-hoc reproduction; nsecs are re-derived
+    from the seed on demand and never persisted. G*N stays available for
+    interop/CI/golden-vector identities, which MUST stay deterministic-
+    public."""
+
+    def __init__(self, repo: Path, seed: str | None = None):
+        import secrets as _secrets
+
+        self.repo = repo
+        self.seed = seed or _secrets.token_hex(16)
+        self._cache: dict[str, dict] = {}
+
+    def identity(self, label: str) -> dict:
+        if label not in self._cache:
+            out = subprocess.check_output(
+                [sys.executable, str(self.repo / "tools/lab_keygen.py"),
+                 "--seed", self.seed, label],
+                text=True,
+            )
+            self._cache[label] = json.loads(out)
+        return self._cache[label]
+
+    def nsec(self, label: str) -> str:
+        return self.identity(label)["nsec_hex"]
+
+    def npub(self, label: str) -> str:
+        return self.identity(label)["npub_hex"]
+
+    def node_addr(self, label: str) -> str:
+        return self.identity(label)["node_addr"]
+
+    def save(self, workdir: Path) -> None:
+        """Record seed + public map (npub/addr only) into the run dir."""
+        workdir.mkdir(parents=True, exist_ok=True)
+        doc = {
+            "seed": self.seed,
+            "note": "secrets re-derive on demand: lab_keygen.py --seed <seed> <label>",
+            "identities": {
+                label: {"npub_hex": i["npub_hex"], "node_addr": i["node_addr"]}
+                for label, i in self._cache.items()
+            },
+        }
+        (workdir / "identities.json").write_text(json.dumps(doc, indent=2))
+
+
 def build_firmware(
     repo: Path, npub_hex: str, nsec_hex: str, extra_env: dict[str, str] | None = None,
     features: str | None = None,
@@ -847,12 +905,15 @@ class LabDaemon:
         port: int = LAB_DAEMON_PORT,
         ble: bool = False,
         bind_ip: str = LAB_DAEMON_BIND_IP,
+        nsec_hex: str | None = None,
     ):
         """`generator_mul` selects the daemon identity (lab_keygen G*N) and
         `port` the UDP bind — a second instance with a different mul/port is
         the mDNS rogue-daemon pattern (audit #188 c2). `ble=True` adds the
         BLE L2CAP transport on hci0 alongside UDP (L2CAP bring-up scenario,
-        #188 c4): fips config shape `transports.ble.adapter`."""
+        #188 c4): fips config shape `transports.ble.adapter`.
+        `nsec_hex` overrides the identity outright — the per-run keys path
+        (BenchIdentities, #206): fresh daemon identity each scenario run."""
         self.repo = repo
         self.rekey_after_secs = rekey_after_secs
         self.workdir = workdir
@@ -860,6 +921,7 @@ class LabDaemon:
         self.port = port
         self.ble = ble
         self.bind_ip = bind_ip
+        self.nsec_hex = nsec_hex
         workdir.mkdir(parents=True, exist_ok=True)
         self.config = workdir / "daemon.yaml"
         self.log = workdir / "daemon.log"
@@ -871,6 +933,34 @@ class LabDaemon:
             ["pgrep", "-f", f"fips --config {config}"], capture_output=True, text=True,
         ).stdout
         return [int(x) for x in out.split()]
+
+    def _render_config(self, template: str, nsec: str) -> str:
+        """Config text for the resolved identity — separated from start()
+        so tests can assert the identity embedding without spawning."""
+        cfg = template.replace("__LAB_DAEMON_NSEC__", nsec)
+        if (self.bind_ip, self.port) != (LAB_DAEMON_BIND_IP, LAB_DAEMON_PORT):
+            cfg = cfg.replace("192.168.13.221:21213", f"{self.bind_ip}:{self.port}")
+        # Injection order matters: the rekey block must nest under `node:`,
+        # so it goes FIRST — the control block then lands at top level
+        # before `transports:` (both anchor on the same marker; reversing
+        # the order silently nests rekey inside control and the daemon
+        # falls back to the default cadence — found by the rekey soak).
+        cfg = cfg.replace(
+            "transports:",
+            f"  rekey:\n    after_secs: {self.rekey_after_secs}\ntransports:",
+        )
+        cfg = cfg.replace(
+            "transports:",
+            f'control:\n  socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
+        )
+        if self.ble:
+            # Anchored on the udp block, not the "transports:" marker the
+            # rekey/control injections rewrite above — order-independent.
+            cfg = cfg.replace(
+                "\n  udp:\n",
+                "\n  ble:\n    adapter: hci0\n  udp:\n",
+            )
+        return cfg
 
     def start(self) -> None:
         # Stop the standard lab daemon (same bind address) and remember it.
@@ -899,30 +989,8 @@ class LabDaemon:
             )
 
         template = (self.repo / "tools/fips-lab.yaml").read_text()
-        nsec = lab_daemon_nsec(self.repo, self.generator_mul)
-        cfg = template.replace("__LAB_DAEMON_NSEC__", nsec)
-        if (self.bind_ip, self.port) != (LAB_DAEMON_BIND_IP, LAB_DAEMON_PORT):
-            cfg = cfg.replace("192.168.13.221:21213", f"{self.bind_ip}:{self.port}")
-        # Injection order matters: the rekey block must nest under `node:`,
-        # so it goes FIRST — the control block then lands at top level
-        # before `transports:` (both anchor on the same marker; reversing
-        # the order silently nests rekey inside control and the daemon
-        # falls back to the default cadence — found by the rekey soak).
-        cfg = cfg.replace(
-            "transports:",
-            f"  rekey:\n    after_secs: {self.rekey_after_secs}\ntransports:",
-        )
-        cfg = cfg.replace(
-            "transports:",
-            f'control:\n  socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
-        )
-        if self.ble:
-            # Anchored on the udp block, not the "transports:" marker the
-            # rekey/control injections rewrite above — order-independent.
-            cfg = cfg.replace(
-                "\n  udp:\n",
-                "\n  ble:\n    adapter: hci0\n  udp:\n",
-            )
+        nsec = self.nsec_hex or lab_daemon_nsec(self.repo, self.generator_mul)
+        cfg = self._render_config(template, nsec)
         self.config.write_text(cfg)
         self.log.write_text("")
 
@@ -990,12 +1058,14 @@ class BenchXxDaemon:
         generator_mul: int = 22,
         port: int = 21214,
         bind_ip: str = LAB_DAEMON_BIND_IP,
+        nsec_hex: str | None = None,
     ):
         self.repo = repo
         self.workdir = workdir
         self.generator_mul = generator_mul
         self.port = port
         self.bind_ip = bind_ip
+        self.nsec_hex = nsec_hex
         workdir.mkdir(parents=True, exist_ok=True)
         self.config = workdir / "xx-daemon.yaml"
         self.log = workdir / "xx-daemon.log"
@@ -1026,7 +1096,7 @@ class BenchXxDaemon:
         while time.monotonic() < deadline and self._pids_for():
             time.sleep(0.5)
 
-        nsec = lab_nsec(self.repo, self.generator_mul)
+        nsec = self.nsec_hex or lab_nsec(self.repo, self.generator_mul)
         self.config.write_text(
             "# Bench XX daemon (upstream next) — fips_lab.BenchXxDaemon\n"
             "node:\n"

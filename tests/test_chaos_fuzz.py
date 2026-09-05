@@ -33,10 +33,6 @@ from fips_lab import bench
 from fips_lab.chaos import FrameStorm
 
 S3_LAB_SERIAL = "F4:12:FA:CF:03:84"
-S3_LAB_NSEC = "00" * 31 + "09"
-LAB_DAEMON_NPUB = (
-    "022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01"
-)
 LAB_DAEMON_UDP = ("192.168.13.221", 21213)
 
 STORM_SECS = 90
@@ -91,6 +87,7 @@ def test_chaos_fuzz_storm():
         pytest.skip(skip)
 
     run_dir = bench.make_run_dir("chaos-fuzz")
+    ids = bench.BenchIdentities(bench.MICROFIPS_REPO)
     lock = bench.acquire_board_lock()
     tap = None
     daemon = None
@@ -98,11 +95,13 @@ def test_chaos_fuzz_storm():
     try:
         binary = bench.build_firmware(
             bench.MICROFIPS_REPO,
-            npub_hex=LAB_DAEMON_NPUB,
-            nsec_hex=S3_LAB_NSEC,
+            npub_hex=ids.npub("daemon"),
+            nsec_hex=ids.nsec("s3-lab"),
             extra_env=bench.lab_static_target_env(),
         )
-        daemon = bench.LabDaemon(bench.MICROFIPS_REPO, 3600, run_dir)
+        daemon = bench.LabDaemon(
+            bench.MICROFIPS_REPO, 3600, run_dir, nsec_hex=ids.nsec("daemon")
+        )
         daemon.start()
 
         bench.quiesce_peer_radios(bench.MICROFIPS_REPO, S3_LAB_SERIAL)
@@ -163,6 +162,7 @@ def test_chaos_fuzz_storm():
             },
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
+        ids.save(run_dir)
 
         assert verdict["heartbeats_during_storm"] >= 5, verdict
         assert verdict["handshakes"] == 1, verdict
