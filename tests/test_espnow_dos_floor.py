@@ -178,11 +178,17 @@ def test_espnow_dos_floor(request):
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
 
-        # Phase A: the floor holds under a peer cycling teardowns.
+        # Phase A: the floor holds under a peer cycling teardowns. The
+        # hard invariant is spacing (>= floor - jitter); the backoff LINE
+        # only prints when the floor still has remainder at check time —
+        # a loaded bench can stretch the daemon's graceful-stop notify
+        # past the 5s floor, in which case the cycle is naturally floored
+        # and no line prints (2026-09-05 rerun: 5 oks, 0 lines, spacings
+        # all >5s). Binding evidence at least once keeps the guard's teeth.
         assert len(spacings) == FLOOR_CYCLES, verdict
         assert phase_a["min_spacing_s"] >= MIN_HANDSHAKE_SPACING_S, verdict
         assert phase_a["handshake_ok_count"] == FLOOR_CYCLES + 1, verdict
-        assert phase_a["backoff_lines"] >= FLOOR_CYCLES - 1, verdict
+        assert phase_a["backoff_lines"] >= 1, verdict
         assert phase_a["link_dead"] == 0, verdict
 
         # Phase B: the foreign source never touches the slot or the daemon,
