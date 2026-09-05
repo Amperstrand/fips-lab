@@ -54,6 +54,7 @@ def test_rekey_soak(rekey_after_secs, request):
             bench.MICROFIPS_REPO,
             npub_hex=LAB_DAEMON_NPUB,
             nsec_hex=node_nsec,
+            extra_env=bench.lab_static_target_env(),
         )
 
         # 2. Daemon first: the node's pinned mDNS discovery needs the advert

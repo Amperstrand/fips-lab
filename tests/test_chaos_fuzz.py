@@ -100,6 +100,7 @@ def test_chaos_fuzz_storm():
             bench.MICROFIPS_REPO,
             npub_hex=LAB_DAEMON_NPUB,
             nsec_hex=S3_LAB_NSEC,
+            extra_env=bench.lab_static_target_env(),
         )
         daemon = bench.LabDaemon(bench.MICROFIPS_REPO, 3600, run_dir)
         daemon.start()

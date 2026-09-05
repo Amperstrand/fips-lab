@@ -67,7 +67,8 @@ def test_rekey_soak_long(request):
             bench.MICROFIPS_REPO,
             npub_hex=LAB_DAEMON_NPUB,
             nsec_hex="00" * 31 + "09",
-            extra_env={"REKEY_AFTER_SECS": str(NODE_REKEY_AFTER_SECS)},
+            extra_env={"REKEY_AFTER_SECS": str(NODE_REKEY_AFTER_SECS)}
+            | bench.lab_static_target_env(),
         )
 
         daemon = bench.LabDaemon(

@@ -667,12 +667,39 @@ def _udp_port_holder(ip: str, port: int) -> tuple[int, str] | None:
 # minutes-scale by construction, so one found holding the lab bind later
 # is stale by definition. The system daemon (/etc/fips) and the standard
 # lab daemon (/tmp/opencode) never match this pattern.
+# The lab daemon's default bind — single source of truth for scenario
+# configs, the stale-daemon sweep, and the firmware static-fallback target.
+LAB_DAEMON_BIND_IP = "192.168.13.221"
+LAB_DAEMON_PORT = 21213
+
+
+def lab_static_target_env() -> dict[str, str]:
+    """Firmware build env pinning the static fallback target to the lab
+    daemon itself (FIPS_TARGET_HOST + FIPS_TARGET_PORT, microfips d11fa9c).
+
+    Pinned mDNS discovery stays the node's primary path; this only replaces
+    the *fallback*. 2026-09-05 soak-long nightly: initial pinned discovery
+    missed in every run that day, each miss burned a ~35 s reconnect cycle
+    against the compiled-in VPS fallback (dead since #190), and the 90 s
+    handshake budget died on two consecutive misses. With the fallback =
+    the scenario daemon, a discovery miss costs one fast retry instead.
+    mDNS-specific scenarios (test_mdns_pinned, test_bench_xx) must NOT use
+    this — they exercise the discovery path deliberately."""
+    return {
+        "FIPS_TARGET_HOST": LAB_DAEMON_BIND_IP,
+        "FIPS_TARGET_PORT": str(LAB_DAEMON_PORT),
+    }
+
+
+
 def _is_stale_scenario_daemon(pid: int) -> bool:
     cmd = _proc_cmdline(pid)
     return "fips" in cmd and "--config" in cmd and "/results/" in cmd
 
 
-def kill_stale_lab_daemon(ip: str = "192.168.13.221", port: int = 21213) -> list[int]:
+def kill_stale_lab_daemon(
+    ip: str = LAB_DAEMON_BIND_IP, port: int = LAB_DAEMON_PORT
+) -> list[int]:
     """Reap a stale scenario daemon holding the lab bind (fips-lab #9):
     SIGTERM (5 s) then SIGKILL, exact-PID only. REFUSES — RuntimeError
     naming the holder — anything that is not a fips process whose config
@@ -711,9 +738,9 @@ class LabDaemon:
         rekey_after_secs: int,
         workdir: Path,
         generator_mul: int = 8,
-        port: int = 21213,
+        port: int = LAB_DAEMON_PORT,
         ble: bool = False,
-        bind_ip: str = "192.168.13.221",
+        bind_ip: str = LAB_DAEMON_BIND_IP,
     ):
         """`generator_mul` selects the daemon identity (lab_keygen G*N) and
         `port` the UDP bind — a second instance with a different mul/port is
@@ -768,7 +795,7 @@ class LabDaemon:
         template = (self.repo / "tools/fips-lab.yaml").read_text()
         nsec = lab_daemon_nsec(self.repo, self.generator_mul)
         cfg = template.replace("__LAB_DAEMON_NSEC__", nsec)
-        if (self.bind_ip, self.port) != ("192.168.13.221", 21213):
+        if (self.bind_ip, self.port) != (LAB_DAEMON_BIND_IP, LAB_DAEMON_PORT):
             cfg = cfg.replace("192.168.13.221:21213", f"{self.bind_ip}:{self.port}")
         # Injection order matters: the rekey block must nest under `node:`,
         # so it goes FIRST — the control block then lands at top level
@@ -856,7 +883,7 @@ class BenchXxDaemon:
         workdir: Path,
         generator_mul: int = 22,
         port: int = 21214,
-        bind_ip: str = "192.168.13.221",
+        bind_ip: str = LAB_DAEMON_BIND_IP,
     ):
         self.repo = repo
         self.workdir = workdir
