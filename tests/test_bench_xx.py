@@ -63,12 +63,31 @@ def test_bench_xx():
     try:
         # 1. Verified XX build: pins the G*22 daemon npub, carries the
         #    noise-xx negotiation marker (binary-checked in build_firmware).
+        #    #192 upgrade: the FSP dual-mode initiator targets the daemon
+        #    (FIPS_FSP_TARGET_* knobs, microfips) instead of the STM32 mesh
+        #    default — the session layer's first hardware proof (the link
+        #    layer was #193; the session layer was sim-only until now).
+        xx_npub = bench.lab_npub(bench.MICROFIPS_REPO, XX_DAEMON_MUL)
+        xx_addr = bench.lab_node_addr(bench.MICROFIPS_REPO, XX_DAEMON_MUL)
         binary = bench.build_firmware(
             bench.MICROFIPS_REPO,
-            npub_hex=bench.lab_npub(bench.MICROFIPS_REPO, XX_DAEMON_MUL),
+            npub_hex=xx_npub,
             nsec_hex="00" * 31 + "09",  # s3-lab board identity (G*9)
             features="noise-xx",
+            extra_env={
+                "FIPS_FSP_TARGET_NPUB_HEX": xx_npub,
+                "FIPS_FSP_TARGET_NODE_ADDR_HEX": xx_addr,
+            }
+            # Static fallback = the XX daemon's own port (21214): pinned mDNS
+            # stays the asserted primary (the "discovered at" line only
+            # prints on a real hit), but a discovery miss no longer falls
+            # back to the dead VPS and eats the handshake budget (09-05).
+            | bench.lab_static_target_env(port=21214),
         )
+        # The FSP target addr knob compiles to bytes (16B) — binary-check
+        # it like the pins above (stale-knob guard, playbook pattern #4).
+        assert bytes.fromhex(xx_addr) in binary.read_bytes(), \
+            "FSP target node addr missing from binary (stale knob?)"
 
         # 2. Daemon first: the node's pinned mDNS discovery needs the advert
         #    up before boot (same ordering as the IK scenarios).
@@ -115,6 +134,16 @@ def test_bench_xx():
             "daemon_security_violations": daemon_log.count("SecurityViolation"),
             "daemon_malformed_reports": daemon_log.count("Malformed"),
             "daemon_rtt_measured": bool(re.search(r"rtt=\d", daemon_log_plain)),
+            # #192 hardware upgrade: FSP session layer over the XX wire —
+            # the node (dual-mode initiator, targeted at the daemon via the
+            # FIPS_FSP_TARGET_* knobs) must drive setup -> ack -> msg3 and
+            # the daemon must land the responder session.
+            "fsp_setup_sent": console.count("sending session datagram"),
+            "fsp_ack_in": console.count("fsp_type=0x02"),  # SessionAck inbound
+            "daemon_session_setup": daemon_log.count("SessionSetup processed (XX)"),
+            "daemon_session_established": daemon_log.count(
+                "Session established (responder, XX)"
+            ),
             "steady_window_s": STEADY_WINDOW_SECS,
         }
         (run_dir / "verdict.json").write_text(json.dumps(verdict, indent=2))
@@ -138,6 +167,11 @@ def test_bench_xx():
         assert verdict["daemon_security_violations"] == 0, verdict
         assert verdict["daemon_malformed_reports"] == 0, verdict
         assert verdict["daemon_rtt_measured"], verdict
+        # #192 hardware upgrade: the XX session layer end-to-end.
+        assert verdict["fsp_setup_sent"] >= 2, verdict  # SessionSetup + msg3
+        assert verdict["fsp_ack_in"] >= 1, verdict  # daemon SessionAck (split-tolerant read)
+        assert verdict["daemon_session_setup"] >= 1, verdict
+        assert verdict["daemon_session_established"] >= 1, verdict
     finally:
         if tap:
             tap.stop()

@@ -134,6 +134,16 @@ def lab_npub(repo: Path, generator_mul: int) -> str:
     return json.loads(out)["npub_hex"]
 
 
+def lab_node_addr(repo: Path, generator_mul: int) -> str:
+    """FIPS node address (32 hex) for a G*N bench identity — the FSP session
+    target when a node opens sessions toward the daemon (test_bench_xx)."""
+    out = subprocess.check_output(
+        [sys.executable, str(repo / "tools/lab_keygen.py"), str(generator_mul)],
+        text=True,
+    )
+    return json.loads(out)["node_addr"]
+
+
 def lab_daemon_nsec(repo: Path, generator_mul: int = 8) -> str:
     return lab_nsec(repo, generator_mul)
 
@@ -673,7 +683,7 @@ LAB_DAEMON_BIND_IP = "192.168.13.221"
 LAB_DAEMON_PORT = 21213
 
 
-def lab_static_target_env() -> dict[str, str]:
+def lab_static_target_env(port: int | None = None) -> dict[str, str]:
     """Firmware build env pinning the static fallback target to the lab
     daemon itself (FIPS_TARGET_HOST + FIPS_TARGET_PORT, microfips d11fa9c).
 
@@ -683,11 +693,13 @@ def lab_static_target_env() -> dict[str, str]:
     against the compiled-in VPS fallback (dead since #190), and the 90 s
     handshake budget died on two consecutive misses. With the fallback =
     the scenario daemon, a discovery miss costs one fast retry instead.
-    mDNS-specific scenarios (test_mdns_pinned, test_bench_xx) must NOT use
-    this — they exercise the discovery path deliberately."""
+    mDNS-specific scenarios (test_mdns_pinned) must NOT use this — they
+    exercise the discovery path deliberately; test_bench_xx keeps its
+    pinned-discovery ASSERT (the "discovered at" line only prints on a
+    real hit) while taking the fallback for budget robustness."""
     return {
         "FIPS_TARGET_HOST": LAB_DAEMON_BIND_IP,
-        "FIPS_TARGET_PORT": str(LAB_DAEMON_PORT),
+        "FIPS_TARGET_PORT": str(port if port is not None else LAB_DAEMON_PORT),
     }
 
 
