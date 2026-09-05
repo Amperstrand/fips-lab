@@ -48,9 +48,13 @@ ATOM_B_SERIAL = "9D529068B4"  # foreign source, G*12
 DAEMON_MUL = 8
 
 FLOOR_CYCLES = 4
-# Policy floor is 5s from the attempt stamp; handshake-ok line spacing
-# carries ±1s of tap-poll jitter on top of it. Pre-fix cycles at ~1-2s.
-MIN_HANDSHAKE_SPACING_S = 4.0
+# The floor gates ATTEMPT cadence (5s from the attempt stamp); handshake-ok
+# line spacing inherits handshake-RTT variance (~±1s between cycles — a
+# fast answer after a slow one measured 3.95s on 2026-09-05). 3.5s bounds
+# out the pre-fix back-to-back regime (~1-2.5s); the regression
+# discriminator is the backoff LINE — pre-fix firmware clears the stamp on
+# handshake ok and takes the Allow path, so it can never print one.
+MIN_HANDSHAKE_SPACING_S = 3.5
 BURST_WINDOW_S = 120
 
 
