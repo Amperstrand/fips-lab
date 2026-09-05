@@ -384,6 +384,93 @@ def build_d0wd_wifi(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
     return binary
 
 
+S3_ESPNOW_WIFI_GW_BIN = "microfips-esp32s3-espnow-wifi-gw"
+D0WD_ESPNOW_BIN = "microfips-esp32-espnow"
+
+
+def build_s3_espnow_wifi_gw(repo: Path, npub_hex: str) -> Path:
+    """S3 standalone ESP-NOW ↔ WiFi/UDP gateway (fips-lab #10, microfips
+    #77): `microfips-esp32s3-espnow-wifi-gw`. FIPS-blind relay — no device
+    identity is compiled in; the pins are the AP credentials and the
+    daemon npub (mDNS discovery filter; the leaf runs Noise IK end-to-end
+    through the relay). This binary is CI-dark (microfips #206) — the
+    bench build is its only compile guard, so build failures here are
+    real signal, never noise to wave away."""
+    wifi = load_dotenv(repo)
+    if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
+        raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
+
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32s3",
+         "--release", "--target", S3_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "WIFI_SSID": wifi["WIFI_SSID"],
+        "WIFI_PASSWORD": wifi["WIFI_PASSWORD"],
+        "DEVICE_NPUB_HEX_vps": npub_hex,
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32s3 --release --target {S3_TARGET} "
+        f"-Zbuild-std=core,alloc --no-default-features --features esp-now,wifi "
+        f"--bin {S3_ESPNOW_WIFI_GW_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / S3_TARGET / "release" / S3_ESPNOW_WIFI_GW_BIN
+    data = binary.read_bytes()
+    misses = []
+    if wifi["WIFI_SSID"].encode() not in data:
+        misses.append("WIFI_SSID")
+    if bytes.fromhex(npub_hex) not in data:
+        misses.append("pinned npub")
+    if misses:
+        raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
+    return binary
+
+
+def build_d0wd_espnow(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
+    """D0WD ESP-NOW leaf node (fips-lab #10, microfips #77):
+    `microfips-esp32 --features esp-now`. No WiFi association — the node
+    never joins an AP (channel-sweep broadcast discovery), so no SSID is
+    compiled in; the pins are the device nsec and the daemon npub (the
+    handshake target whose key the relay discovers, end-to-end through
+    the FIPS-blind gateway)."""
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32",
+         "--release", "--target", D0WD_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "DEVICE_NPUB_HEX_vps": npub_hex,
+        "DEVICE_NSEC_HEX_esp32": nsec_hex,
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32 --release --target {D0WD_TARGET} "
+        f"-Zbuild-std=core,alloc --features esp-now --bin {D0WD_ESPNOW_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / D0WD_TARGET / "release" / D0WD_ESPNOW_BIN
+    data = binary.read_bytes()
+    misses = []
+    if bytes.fromhex(npub_hex) not in data:
+        misses.append("pinned npub")
+    if bytes.fromhex(nsec_hex) not in data:
+        misses.append("device nsec")
+    if misses:
+        raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
+    return binary
+
+
 # Attached-atom identities for radio quiesce (lab_keygen G*N; the smoke's
 # GENERATOR_MUL is the superset — this map lists the L2CAP-capable atoms
 # that can interfere on hci0).
@@ -408,7 +495,7 @@ def _quiesce_binary(repo: Path, key: str, mul: int) -> Path:
     return cached
 
 
-def quiesce_peer_radios(repo: Path, exclude_serial: str) -> list[str]:
+def quiesce_peer_radios(repo: Path, exclude_serial: "str | list[str] | set[str]") -> list[str]:
     """Flash every OTHER attached radio board with the radio-silent UART
     variant — one quiesce discipline for both interference classes on this
     bench (2026-09-03, both caught by scenarios the same day):
@@ -427,7 +514,9 @@ def quiesce_peer_radios(repo: Path, exclude_serial: str) -> list[str]:
       WiFi-mode boot).
 
     Only touches boards physically attached; flashes happen under the
-    caller's bench lock. Returns the serials quiesced."""
+    caller's bench lock. `exclude_serial` accepts one serial or a
+    collection (multi-actor scenarios like the ESP-NOW DoS floor exclude
+    both atoms). Returns the serials quiesced."""
     quiesce_map: dict[str, dict] = {
         **{serial: {"mul": mul, "vidpid": D0WD_VIDPID, "find": "serial"}
            for serial, mul in QUIESCE_ATOM_MUL.items()},
@@ -439,8 +528,13 @@ def quiesce_peer_radios(repo: Path, exclude_serial: str) -> list[str]:
         },
     }
     quiesced: list[str] = []
+    excluded = (
+        {exclude_serial}
+        if isinstance(exclude_serial, str)
+        else set(exclude_serial)
+    )
     for key, spec in quiesce_map.items():
-        if key == exclude_serial:
+        if key in excluded:
             continue
         if spec["find"] == "serial":
             port = find_board(vidpid=spec["vidpid"], serial=key)
