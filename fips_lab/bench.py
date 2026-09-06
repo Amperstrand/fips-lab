@@ -444,6 +444,107 @@ def build_d0wd_wifi(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
 
 S3_ESPNOW_WIFI_GW_BIN = "microfips-esp32s3-espnow-wifi-gw"
 D0WD_ESPNOW_BIN = "microfips-esp32-espnow"
+D0WD_ESPNOW_WIFI_GW_BIN = "microfips-esp32-espnow-wifi-gw"
+S3_HYBRID_BIN = "microfips-esp32s3-hybrid"
+
+
+def build_d0wd_espnow_wifi_gw(repo: Path, npub_hex: str) -> Path:
+    """D0WD standalone ESP-NOW ↔ WiFi/UDP gateway (fips-lab #6 unblock):
+    `microfips-esp32 --features esp-now,wifi`. Same pin set as the S3
+    gateway (build_s3_espnow_wifi_gw) — AP credentials + daemon npub, no
+    device identity (FIPS-blind). First D0WD-class gateway binary; the
+    S3 twin is the hardware-proven reference this is validated against."""
+    wifi = load_dotenv(repo)
+    if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
+        raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
+
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32",
+         "--release", "--target", D0WD_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "WIFI_SSID": wifi["WIFI_SSID"],
+        "WIFI_PASSWORD": wifi["WIFI_PASSWORD"],
+        "DEVICE_NPUB_HEX_vps": npub_hex,
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32 --release --target {D0WD_TARGET} "
+        f"-Zbuild-std=core,alloc --features esp-now,wifi "
+        f"--bin {D0WD_ESPNOW_WIFI_GW_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / D0WD_TARGET / "release" / D0WD_ESPNOW_WIFI_GW_BIN
+    data = binary.read_bytes()
+    misses = []
+    if wifi["WIFI_SSID"].encode() not in data:
+        misses.append("WIFI_SSID")
+    if bytes.fromhex(npub_hex) not in data:
+        misses.append("pinned npub")
+    if misses:
+        raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
+    return binary
+
+
+def build_s3_hybrid(
+    repo: Path, npub_hex: str, nsec_hex: str,
+    wifi_down_secs: int, probe_secs: int,
+) -> Path:
+    """S3 hybrid WiFi/ESP-NOW node (fips-lab #6):
+    `microfips-esp32s3-hybrid`. Pins: SSID, daemon npub, device nsec, plus
+    the two hybrid chaos knobs — HYBRID_TEST_WIFI_DOWN_SECS forces the
+    WiFi path down for the first N seconds of uptime (drives the
+    ESP-NOW-start + probe-gated switch-back), HYBRID_WIFI_PROBE_SECS
+    shortens the default 300s return probe so the scenario fits a bench
+    window. Both knobs are numeric option_env! constants — invisible to
+    cargo change detection, so the clean is mandatory and the knobs are
+    verified behaviorally via their boot/probe console lines."""
+    wifi = load_dotenv(repo)
+    if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
+        raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
+
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32s3",
+         "--release", "--target", S3_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "WIFI_SSID": wifi["WIFI_SSID"],
+        "WIFI_PASSWORD": wifi["WIFI_PASSWORD"],
+        "DEVICE_NPUB_HEX_vps": npub_hex,
+        "DEVICE_NSEC_HEX_esp32s3": nsec_hex,
+        "HYBRID_TEST_WIFI_DOWN_SECS": str(wifi_down_secs),
+        "HYBRID_WIFI_PROBE_SECS": str(probe_secs),
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    env.update(lab_static_target_env())
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32s3 --release --target {S3_TARGET} "
+        f"-Zbuild-std=core,alloc --no-default-features --features esp-now,wifi "
+        f"--bin {S3_HYBRID_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / S3_TARGET / "release" / S3_HYBRID_BIN
+    data = binary.read_bytes()
+    misses = []
+    if wifi["WIFI_SSID"].encode() not in data:
+        misses.append("WIFI_SSID")
+    if bytes.fromhex(npub_hex) not in data:
+        misses.append("pinned npub")
+    if bytes.fromhex(nsec_hex) not in data:
+        misses.append("device nsec")
+    if misses:
+        raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
+    return binary
 
 
 def build_s3_espnow_wifi_gw(repo: Path, npub_hex: str) -> Path:
