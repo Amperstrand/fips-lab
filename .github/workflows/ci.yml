@@ -28,6 +28,12 @@ jobs:
           repository: Amperstrand/tollgate-lab
           path: tollgate-lab
 
+      - name: Checkout microfips (bench identity keygen)
+        uses: actions/checkout@v4
+        with:
+          repository: Amperstrand/microfips
+          path: microfips
+
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
