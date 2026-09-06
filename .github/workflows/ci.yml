@@ -11,6 +11,9 @@ defaults:
   run:
     working-directory: fips-lab
 
+env:
+  MICROFIPS_REPO: ${{ github.workspace }}/microfips
+
 jobs:
   host-tests:
     runs-on: ubuntu-latest
