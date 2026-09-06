@@ -44,7 +44,7 @@ notes  = "USB CDC c0de:cafe; flash via st-flash (never probe-rs live)"
 alias  = "atom-a"
 chip   = "esp32"
 ops    = ["flash", "observe"]
-notes  = "M5 Atom ESP32-PICO-D4, G*11 lab identity, FTDI 0403:6001 (shared VID:PID with the off-limits M5 Stack — always pass the serial)"
+notes  = "M5 Atom ESP32-PICO-D4, G*11 lab identity, FTDI 0403:6001 (shared VID:PID with the off-limits M5 Stack — always pass the serial). BROWNOUT UNDER TX LOAD (2026-09-06, hybrid-switch bring-up): WiFi-association bursts reboot-loop it — the D0WD espnow-wifi-gw binary emits repeating UART garbage on this board while the espnow NODE firmware runs fine and the SAME gateway binary works on atom-b + CYD. Gateway/association-class roles go to atom-b or the CYD; node-class roles are fine here"
 
 [boards."9D529068B4"]
 alias  = "atom-b"
