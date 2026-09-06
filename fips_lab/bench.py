@@ -24,6 +24,7 @@ from pathlib import Path
 
 from tollgate_lab import BenchLock, BenchLockHeldError, HardwareLock, acquire_bench_lock
 from tollgate_lab.reservation import BoardReservation
+from tollgate_lab import session_registry
 
 MICROFIPS_REPO = Path(os.environ.get("MICROFIPS_REPO", "~/src/microfips")).expanduser()
 BOARDS_TOML = Path(__file__).resolve().parent / "boards.toml"
@@ -1299,14 +1300,21 @@ def acquire_board_lock(name: str = "microfips-bench", project: str = "fips-lab")
        tollgate consumers that read hardware.lock).
 
     Raises BenchLockHeldError naming the holder when the flock is taken;
-    release() frees both."""
+    release() frees both. Also announces a session-registry entry (the
+    who-is-doing-what layer — see tollgate_lab.session_registry) so other
+    sessions see this run in `sessions_status()` and kill registered
+    PIDs, not patterns."""
     bench = acquire_bench_lock("amperstrand-bench", project=project,
                                cwd=str(Path(__file__).resolve().parent))
     legacy = HardwareLock(name)
     legacy.acquire()
+    session = session_registry.session_begin(
+        "bench", project, f"bench lock {name} (caller pid is in the record)"
+    )
 
     class _Composite:
         def release(self):
+            session.end()
             legacy.release()
             bench.release()
 
