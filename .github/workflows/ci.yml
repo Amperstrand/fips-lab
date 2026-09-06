@@ -46,6 +46,9 @@ jobs:
       - name: Host-runnable subset (no hardware env)
         run: uv run python -m pytest -m "not hardware and not flash" -rs --timeout=120
 
+      - name: Wireshark dissector vs canonical cross-vectors
+        run: python3 tools/check_dissector_vectors.py
+
       - name: Skip-reason guard (tracked skip-list, docs/SKIPS.md)
         run: |
           set -euo pipefail
