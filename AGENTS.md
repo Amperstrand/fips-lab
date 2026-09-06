@@ -324,3 +324,14 @@ python -m lab.capture.btsnoop_decrypt results/<run-dir> --debug-failures
 - **pytest** (`>=8.0`), **paramiko**, **pyserial**, **attrs**, **pyyaml**
 - `cryptography` (lazy-imported in `btsnoop_decrypt.py` for ChaCha20-Poly1305)
 - `nak` CLI + `.nsec` for Blossom/Nostr publishing
+
+## Multi-session coordination (2026-09-06)
+
+More than one agent session shares this bench host. `acquire_board_lock()`
+announces a session-registry entry automatically; before ANY bench/device
+work run `python3 -m tollgate_lab.session_registry status` (live sessions,
+claimed resources, registered PIDs; `LOST` = a session died mid-work —
+investigate before inheriting). Long runs register children via
+`session.add_pid()`; process hygiene uses `lab-kill <session-name>`, never
+`pkill -f` patterns. Full stack + checklist + journal contract:
+hackathon-tooling `patterns/testing/multi-session-coordination.md`.
