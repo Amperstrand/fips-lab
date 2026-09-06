@@ -47,6 +47,7 @@ LINK_DEAD_BUDGET_S = 90
 
 @pytest.mark.hardware
 @pytest.mark.flash
+@pytest.mark.slow
 @pytest.mark.timeout(1500)
 def test_hybrid_switch(request):
     skip = bench.bench_available(S3_LAB_SERIAL)

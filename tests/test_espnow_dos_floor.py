@@ -60,6 +60,7 @@ BURST_WINDOW_S = 120
 
 @pytest.mark.hardware
 @pytest.mark.flash
+@pytest.mark.slow
 @pytest.mark.timeout(1500)
 def test_espnow_dos_floor(request):
     skip = bench.bench_available(S3_LAB_SERIAL)
