@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "13 4 * * *"
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Sync deps (locks resolve)
+        run: uv sync
+
+      - name: Collection gate (imports + fixtures resolve for all 90+ tests)
+        run: uv run python -m pytest --collect-only -q
+
+      - name: Host-runnable subset (no hardware env)
+        run: uv run python -m pytest -m "not hardware and not flash" -rs --timeout=120
+
+      - name: Skip-reason guard (tracked skip-list, docs/SKIPS.md)
+        run: |
+          set -euo pipefail
+          uv run python -m pytest -m "not hardware and not flash" -rs -q --timeout=120 2>&1 \
+            | grep '^SKIPPED' | sed -E 's/^SKIPPED \[[0-9]+\] //' | sort -u > /tmp/reasons.txt || true
+          echo "Distinct skip reasons found:"; cat /tmp/reasons.txt
+          # Every reason must be one of the tracked classes in docs/SKIPS.md.
+          # A new reason = a test regressed from skip-by-design to skip-by-accident.
+          while IFS= read -r r; do
+            reason=$(echo "$r" | sed -E 's/^tests\/[^:]+:[0-9]+: //')
+            echo "$reason" | grep -qE '^(missing environment config \(use --lg-env\)|ESP32 cannot initiate benchmarks|Download direction unimplemented, issue #132)$' \
+              || { echo "::error::Untracked skip reason: $reason — triage it and update docs/SKIPS.md"; exit 1; }
+          done < /tmp/reasons.txt
