@@ -7,12 +7,23 @@ on:
   schedule:
     - cron: "13 4 * * *"
 
+defaults:
+  run:
+    working-directory: fips-lab
+
 jobs:
   host-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: fips-lab
+      - name: Checkout tollgate-lab (path dependency ../tollgate-lab)
+        uses: actions/checkout@v4
+        with:
+          repository: OpenTollGate/tollgate-lab
+          path: tollgate-lab
 
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
