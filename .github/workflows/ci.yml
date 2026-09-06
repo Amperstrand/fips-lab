@@ -22,7 +22,7 @@ jobs:
       - name: Checkout tollgate-lab (path dependency ../tollgate-lab)
         uses: actions/checkout@v4
         with:
-          repository: OpenTollGate/tollgate-lab
+          repository: Amperstrand/tollgate-lab
           path: tollgate-lab
 
       - name: Install uv
