@@ -9,10 +9,8 @@
 #   observe  = console-tap only (never flashed by scenarios)
 #
 # Boards deliberately NOT listed (refused for every op):
-#   - M5 Stack Hades2001 (FTDI 0403:6001) — moved off the bench to the
-#     maintainer's laptop (2026-09-03): relay controller for the evmap
-#     charger project, configured from there. Still refused if it
-#     reappears on this bench.
+#   (none currently — the former Hades2001 refusal note is superseded by
+#    the m5stick-nucula entry below, owner direction 2026-09-12)
 #   - ACR1252 NFC reader (072f:223b) — bench shared device, not a board
 #   - any board that appears on the bench without an entry here
 
@@ -72,3 +70,9 @@ alias  = "micronuts-wallet"
 chip   = "stm32f469"
 ops    = ["flash", "observe"]
 notes  = "Micronuts Cashu hardware wallet, CDC-ACM 16c0:27dd (ttyACM2); FIPS-sidecar ADR binds the integration — coordinate with the micronuts session before flashing"
+
+[boards."49D6163EBE"]
+alias  = "m5stick-nucula"
+chip   = "esp32"
+ops    = ["flash", "observe"]
+notes  = "M5StickC Plus (Hades2001 USB-serial bridge, FTDI 0403:6001 — shared VID:PID class: always match the USB serial). Back on the bench 2026-09-12 by owner direction as the nucula RC522 relay-rig board (MFRC522 on I2C 0x28, antenna back-to-back with the ACR1252); supersedes the 2026-09-03 off-bench/evmap-relay note for this serial. The bridge flakes above 115200 baud — flash with esptool at -b 115200 (nucula AGENTS). AXP192 keeps the Grove rail up across resets (RC522 latch-up recovery is firmware-side)"
