@@ -58,7 +58,7 @@ notes  = "M5 ATOM Matrix, G*12 lab identity, FTDI 0403:6001. CHARGER D since 202
 alias  = "cyd"
 chip   = "esp32"
 ops    = ["flash", "observe"]
-notes  = "ESP32-D0WD-V3 LCD board, CH340 1a86:7523, no USB serial — pinned by /dev/serial/by-path; G*10 lab identity (device-registry.json 'cyd')"
+notes  = "ESP32-D0WD-V3 LCD board (Cheap Yellow Display), CH340 1a86:7523, no USB serial — pinned by /dev/serial/by-path; G*10 lab identity. CHARGER E since 2026-09-13: Rust cyd profile (backlight indicator), benched ON ai-legion-small ttyUSB0 — the fleet's FIRST labgrid-rail flash (bench lock + place cyd-bringup + registry gate + esptool@115200 through the CH340). Note: a second Hades2001 (49D6163EBE) also lives on the bench box ttyUSB1 — off-limits class"
 
 # Enrolled 2026-09-04 (bench-enrollment bundle). Another project's board:
 # their firmware, their flashes (st-flash, same toolchain as f469-mcu);
