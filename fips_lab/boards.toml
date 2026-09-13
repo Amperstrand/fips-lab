@@ -48,7 +48,7 @@ notes  = "M5 Atom ESP32-PICO-D4, G*11 lab identity, FTDI 0403:6001 (shared VID:P
 alias  = "atom-b"
 chip   = "esp32"
 ops    = ["flash", "observe"]
-notes  = "M5 Atom ESP32-PICO-D4, G*12 lab identity, FTDI 0403:6001; reattached 2026-09-03 and wired to the bench ACR1252 NFC reader (cross-device testing); smoke variant = l2cap"
+notes  = "M5 ATOM Matrix, G*12 lab identity, FTDI 0403:6001. CHARGER D since 2026-09-13: Rust atom-matrix profile (metered), Angle Unit pot on Grove G32 (rail-to-rail 0..4095). Lives on the maintainer's Mac; flash via tollgate-lab (bench lock + this registry + serial-matched port), esptool-direct at 115200 ONLY (FT232R dies at the 230400 baud switch). History: SeedKeeper CCID/NFC era, ACR1252 cross-testing (2026-09-03), C++ charger-display prototype (retired)"
 
 # Registry key is SYNTHETIC: the CYD's CH340 adapter exposes no USB serial
 # number — identity is the physical port (id_path). If the board moves to a
