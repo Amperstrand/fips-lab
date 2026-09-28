@@ -253,12 +253,12 @@ Remaining, in priority order:
 
 ## Coordinator topology (locked down 2026-09-02)
 
-`labgrid-coordinator` on the workstation binds **192.168.13.221:20408** only —
+`labgrid-coordinator` on the workstation binds **192.168.13.208:20408** only —
 not localhost, not 0.0.0.0. Rationale: localhost would break the planned
 multi-machine bench (ai-legion, ai-legion-small, mac laptop registering
 hardware), while 0.0.0.0 exposed the coordinator to every interface
 (enp5s0 cloud-LAB subnet, docker bridges). Lab clients set
-`LG_COORDINATOR=192.168.13.221:20408` (in ~/.bashrc on the workstation).
+`LG_COORDINATOR=192.168.13.208:20408` (in ~/.bashrc on the workstation).
 Future machines reach the coordinator over the lab LAN; the exporter on
 each machine publishes its local hardware to it. Verified: localhost
 refused, cloud-LAB interface refused, lab interface serves.

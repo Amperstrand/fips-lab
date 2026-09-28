@@ -1,4 +1,4 @@
-coordinator: "192.168.13.221:20408"
+coordinator: "192.168.13.208:20408"
 hostname: ai-legion
 resources:
   esp32-d0wd:
