@@ -9,8 +9,15 @@ recorded in the keylog, and exactly one combination authenticates.
 
 Usage:
     python3 -m lib.fips_decrypt --pcap loopback.pcap --keylog keylog.jsonl
+    python3 -m lib.fips_decrypt --btsnoop ble.snoop --keylog keylog.jsonl
     python3 -m lib.fips_decrypt ... --json            # machine-readable
     python3 -m lib.fips_decrypt ... --emit-decrypted D # write payloads to D
+
+The btsnoop input (btmon -w, Android snoop) carries the FMP frames as
+L2CAP payloads on the FIPS connection; ACL fragments are reassembled and
+every completed L2CAP payload is fed through the same frame classifier,
+whose version/phase validation rejects non-FIPS traffic, so no CID
+filtering is needed.
 
 Wire format (docs/reference/wire-formats.md, upstream d208a9db era):
   Common prefix (4B): version<<4|phase, flags, payload_len LE16.
@@ -130,6 +137,67 @@ def iter_udp_payloads(pcap: Path):
             continue
         for record in _iter_udp(ip):
             yield (ts, *record)
+
+
+BTSNOOP_MAGIC = b"btsnoop\x00"
+# Microseconds between year 0 (btsnoop epoch) and the Unix epoch.
+BTSNOOP_UNIX_OFFSET_US = 0x00E03AB44A676000
+
+
+def iter_btsnoop_payloads(path: Path):
+    """Yield (ts, src, dst, sport, dport, payload) for L2CAP frames in a
+    btsnoop capture (btmon -w / Android), ACL-fragment reassembly included.
+
+    `src`/`dst` carry the ACL handle and direction, `sport` the L2CAP CID, so
+    downstream reporting reads like the UDP case.
+    """
+    data = path.read_bytes()
+    if data[:8] != BTSNOOP_MAGIC:
+        raise SystemExit(f"not a btsnoop file: {path}")
+    off = 16
+    reassembly: dict[int, bytearray] = {}
+    while off + 24 <= len(data):
+        orig_len, incl_len, flags, _drops, ts_raw = struct.unpack(
+            ">IIIIQ", data[off : off + 24]
+        )
+        off += 24
+        packet = data[off : off + incl_len]
+        off += incl_len
+        ts = (ts_raw - BTSNOOP_UNIX_OFFSET_US) / 1e6
+        direction = "rx" if flags & 1 else "tx"
+        if not packet or packet[0] != 0x02:
+            continue
+        handle_flags, data_len = struct.unpack("<HH", packet[1:5])
+        handle = handle_flags & 0x0FFF
+        pb = (handle_flags >> 12) & 0x3
+        fragment = packet[5 : 5 + data_len]
+        if pb == 0:
+            buf = reassembly.get(handle)
+            if buf is not None:
+                buf.extend(fragment)
+                if len(buf) >= 4:
+                    l2len = struct.unpack("<H", buf[:2])[0]
+                    if len(buf) >= 4 + l2len:
+                        yield _l2cap_record(ts, direction, handle, bytes(buf[: 4 + l2len]))
+                        reassembly.pop(handle, None)
+            continue
+        buf = bytearray(fragment)
+        if len(buf) < 4:
+            reassembly[handle] = buf
+            continue
+        l2len = struct.unpack("<H", buf[:2])[0]
+        if len(buf) >= 4 + l2len:
+            yield _l2cap_record(ts, direction, handle, bytes(buf[: 4 + l2len]))
+        else:
+            reassembly[handle] = buf
+
+
+def _l2cap_record(ts: float, direction: str, handle: int, l2cap: bytes):
+    l2len = struct.unpack("<H", l2cap[:2])[0]
+    cid = struct.unpack("<H", l2cap[2:4])[0]
+    payload = l2cap[4 : 4 + l2len]
+    src = f"ble-{direction}"
+    return (ts, src, "peer", handle, cid, payload)
 
 
 def _strip_link(linktype: int, packet: bytes) -> bytes | None:
@@ -331,11 +399,17 @@ def decrypt_established(datagram: bytes, generations: list[dict]) -> dict | None
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--pcar", "--pcap", dest="pcap", required=True, type=Path)
+    ap.add_argument("--pcar", "--pcap", dest="pcap", type=Path)
+    ap.add_argument("--btsnoop", type=Path)
     ap.add_argument("--keylog", required=True, type=Path)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--emit-decrypted", type=Path)
     args = ap.parse_args()
+    if bool(args.pcap) == bool(args.btsnoop):
+        raise SystemExit("give exactly one of --pcap or --btsnoop")
+    source = (
+        iter_udp_payloads(args.pcap) if args.pcap else iter_btsnoop_payloads(args.btsnoop)
+    )
 
     generations = load_keylog(args.keylog)
     per_pattern = Counter(g["pattern"] for g in generations)
@@ -349,7 +423,7 @@ def main() -> int:
     if emit_dir:
         emit_dir.mkdir(parents=True, exist_ok=True)
 
-    for ts, src, dst, sport, dport, payload in iter_udp_payloads(args.pcap):
+    for ts, src, dst, sport, dport, payload in source:
         stats["udp_packets"] += 1
         frames = list(iter_frames(payload))
         if not frames:
@@ -415,7 +489,7 @@ def main() -> int:
                 )
 
     report = {
-        "pcap": str(args.pcap),
+        "capture": str(args.pcap or args.btsnoop),
         "keylog": str(args.keylog),
         "key_generations": len(generations),
         "generations_by_pattern": dict(per_pattern),
@@ -432,7 +506,7 @@ def main() -> int:
         json.dump(report, sys.stdout, indent=2)
         print()
     else:
-        print(f"pcap: {report['pcap']}  keylog: {report['keylog']}")
+        print(f"capture: {report['capture']}  keylog: {report['keylog']}")
         print(f"key generations: {report['key_generations']} {dict(per_pattern)}")
         for k, v in sorted(stats.items()):
             print(f"  {k:20s} {v}")
