@@ -46,6 +46,19 @@ MSG_TYPES = {
     0x51: "Heartbeat",
 }
 
+FSP_MSG_TYPES = {
+    0x10: "Data",
+    0x11: "SenderReport",
+    0x12: "ReceiverReport",
+    0x13: "PathMtuNotification",
+    0x14: "CoordsWarmup",
+    0x20: "CoordsRequired",
+    0x21: "PathBroken",
+    0x22: "MtuExceeded",
+}
+
+FSP_PHASE_NAMES = {1: "SessionSetup", 2: "SessionAck", 3: "SessionMsg3"}
+
 
 def load_keylog(path: Path) -> list[dict]:
     """Group keylog lines into handshake generations keyed by handshake hash.
@@ -187,6 +200,105 @@ def iter_frames(datagram: bytes):
         offset += frame_len
 
 
+def decrypt_fsp(frame: bytes, generations: list[dict]) -> dict | None:
+    """Peel one FSP session-layer frame with the xk keylog generations.
+
+    Layout: prefix(4) + counter LE64 = the 12-byte AEAD-AAD header;
+    cleartext coordinates follow when the CP flag (bit 0) is set;
+    ciphertext||tag after them. The U flag (bit 2) marks plaintext.
+    """
+    if len(frame) < 12 or frame[0] >> 4 != 0:
+        return None
+    phase = frame[0] & 0x0F
+    flags = frame[1]
+    payload_len = struct.unpack("<H", frame[2:4])[0]
+    if phase in FSP_PHASE_NAMES:
+        return {"phase": phase, "phase_name": FSP_PHASE_NAMES[phase]}
+    if phase != 0:
+        return None
+    unencrypted = bool(flags & 0x04)
+    header = frame[:12]
+    counter = struct.unpack("<Q", header[4:12])[0]
+    offset = 12
+    coords_len = None
+    if flags & 0x01:
+        coords_len = _cleartext_coords_len(frame, offset)
+        if coords_len is None:
+            return None
+        offset += coords_len
+    body = frame[offset : offset + payload_len + (0 if unencrypted else 16)]
+    if len(body) < payload_len:
+        return None
+    if unencrypted:
+        plain = body[:payload_len]
+        gen_index = direction = None
+    else:
+        nonce = b"\x00\x00\x00\x00" + struct.pack("<Q", counter)
+        plain = None
+        for gen in generations:
+            if gen["pattern"] != "xk":
+                continue
+            for direction, key in (
+                ("init->resp", gen["k_init_to_resp"]),
+                ("resp->init", gen["k_resp_to_init"]),
+            ):
+                try:
+                    plain = ChaCha20Poly1305(key).decrypt(nonce, body, header)
+                    gen_index = gen["index"]
+                    break
+                except InvalidTag:
+                    continue
+            if plain is not None:
+                break
+        if plain is None:
+            return None
+    if len(plain) < 6:
+        return None
+    msg_type = plain[4]
+    return {
+        "phase": 0,
+        "phase_name": "Established",
+        "unencrypted": unencrypted,
+        "cp_coords": coords_len,
+        "generation": gen_index,
+        "direction": direction,
+        "counter": counter,
+        "timestamp_ms": struct.unpack("<I", plain[:4])[0],
+        "msg_type": msg_type,
+        "msg_type_name": FSP_MSG_TYPES.get(msg_type, f"unknown-0x{msg_type:02x}"),
+    }
+
+
+def _cleartext_coords_len(frame: bytes, offset: int) -> int | None:
+    def one_side(off: int) -> int | None:
+        if off + 2 > len(frame):
+            return None
+        n = struct.unpack("<H", frame[off : off + 2])[0]
+        end = off + 2 + 16 * n
+        return end if end <= len(frame) else None
+
+    src_end = one_side(offset)
+    if src_end is None:
+        return None
+    dest_end = one_side(src_end)
+    return None if dest_end is None else dest_end - offset
+
+
+def peel_session_datagram(fmp_plaintext: bytes) -> bytes | None:
+    """Return the FSP frame embedded in a decrypted SessionDatagram.
+
+    FMP plaintext: timestamp(4) + the link message, and for a
+    SessionDatagram that message is the 36-byte fixed header
+    (msg_type, ttl, path_mtu, src, dest) followed by the FSP frame —
+    the type byte at plaintext[4] is the SD header's own first field.
+    """
+    if len(fmp_plaintext) < 4 + 36:
+        return None
+    if fmp_plaintext[4] != 0x00:
+        return None
+    return fmp_plaintext[4 + 36 :]
+
+
 def decrypt_established(datagram: bytes, generations: list[dict]) -> dict | None:
     header = datagram[:16]
     counter = struct.unpack("<Q", header[8:16])[0]
@@ -230,6 +342,7 @@ def main() -> int:
 
     stats = Counter()
     msg_types = Counter()
+    fsp_msg_types: dict[str, int] = {}
     per_generation = Counter()
     samples: list[dict] = []
     emit_dir = args.emit_decrypted
@@ -257,6 +370,34 @@ def main() -> int:
             stats["decrypted"] += 1
             msg_types[record["msg_type_name"]] += 1
             per_generation[record["generation"]] += 1
+            fsp_record = None
+            if record["msg_type"] == 0x00:
+                fsp_frame = peel_session_datagram(record["plaintext"])
+                fsp_record = decrypt_fsp(fsp_frame, generations) if fsp_frame else None
+                if fsp_record is not None:
+                    if fsp_record["phase"] != 0:
+                        stats[f"fsp_{fsp_record['phase_name']}"] = (
+                            stats.get(f"fsp_{fsp_record['phase_name']}", 0) + 1
+                        )
+                    else:
+                        stats["fsp_established"] = stats.get("fsp_established", 0) + 1
+                        if fsp_record.get("unencrypted"):
+                            stats["fsp_unencrypted"] = stats.get("fsp_unencrypted", 0) + 1
+                            fsp_msg_types[f"{fsp_record['msg_type_name']} (U)"] = (
+                                fsp_msg_types.get(f"{fsp_record['msg_type_name']} (U)", 0) + 1
+                            )
+                        elif fsp_record.get("generation") is not None:
+                            stats["fsp_decrypted"] = stats.get("fsp_decrypted", 0) + 1
+                            fsp_msg_types[fsp_record["msg_type_name"]] = (
+                                fsp_msg_types.get(fsp_record["msg_type_name"], 0) + 1
+                            )
+                        else:
+                            stats["fsp_undecryptable"] = stats.get("fsp_undecryptable", 0) + 1
+                        if fsp_record.get("cp_coords"):
+                            stats["fsp_cp_frames"] = stats.get("fsp_cp_frames", 0) + 1
+                else:
+                    stats["fsp_unparseable"] = stats.get("fsp_unparseable", 0) + 1
+            record["fsp"] = fsp_record
             if emit_dir:
                 (emit_dir / f"{ts:.6f}_gen{record['generation']}_{record['direction']}_c{record['counter']}.bin").write_bytes(record["plaintext"])
             if len(samples) < 8:
@@ -280,6 +421,7 @@ def main() -> int:
         "generations_by_pattern": dict(per_pattern),
         "stats": dict(stats),
         "msg_types": dict(msg_types.most_common()),
+        "fsp_msg_types": fsp_msg_types,
         "packets_per_generation": {str(k): v for k, v in sorted(per_generation.items())},
         "decrypt_ratio": (
             round(stats["decrypted"] / stats["established"], 4) if stats["established"] else None
@@ -297,6 +439,12 @@ def main() -> int:
         ratio = report["decrypt_ratio"]
         print(f"  decrypt ratio       {ratio if ratio is None else f'{ratio:.1%}'}")
         print("  message types:", ", ".join(f"{k}={v}" for k, v in msg_types.most_common()))
+        if fsp_msg_types or any(k.startswith("fsp_") for k in stats):
+            fsp_est = stats.get("fsp_established", 0)
+            fsp_dec = stats.get("fsp_decrypted", 0)
+            fsp_ratio = f"{fsp_dec / fsp_est:.1%}" if fsp_est else "n/a"
+            print(f"  fsp established     {fsp_est}  decrypted {fsp_dec}  ratio {fsp_ratio}")
+            print("  fsp message types:", ", ".join(f"{k}={v}" for k, v in sorted(fsp_msg_types.items(), key=lambda kv: -kv[1])))
     return 0
 
 
