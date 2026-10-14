@@ -253,6 +253,11 @@ Remaining, in priority order:
 
 ## Coordinator topology (locked down 2026-09-02)
 
+> 2026-10-14: the canonical cross-project labgrid doc is conwrt-bench
+> `docs/labgrid-coordination.md` (exporter fleet, reservation queueing,
+> exclusion domains, trusted-network model). This playbook keeps the
+> fips-lab specifics; trust conwrt-bench where they disagree.
+
 `labgrid-coordinator` on the workstation binds **192.168.13.208:20408** only —
 not localhost, not 0.0.0.0. Rationale: localhost would break the planned
 multi-machine bench (ai-legion, ai-legion-small, mac laptop registering
