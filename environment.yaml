@@ -24,7 +24,12 @@ targets:
           config_path: /etc/fips/fips.yaml
           ble_adapter: hci0
       - FipsctlDriver:
-          binary: /home/ubuntu/src/fips/target/release/fipsctl
+          # Pinned bench daemon: built from the amperstrand/lab-keylog
+          # worktree at /home/ubuntu/bench/fips-daemon (SHA recorded in
+          # /home/ubuntu/bench/fips-daemon/DAEMON_BUILD), so bench runs stop
+          # depending on whatever branch the dev checkout is on and pick up
+          # the BLE learned-address-type fix + FIPS_LAB_KEYLOG.
+          binary: /home/ubuntu/bench/fips-daemon/target/release/fipsctl
           sudo: true
       - BLEScanDriver:
           adapter: hci0
