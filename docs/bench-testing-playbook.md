@@ -251,6 +251,18 @@ Remaining, in priority order:
 5. Soak cron/nightly wiring (hackathon-tooling bench-nightly job) — the
    scenario exists and is marked slow; scheduling it is tooling work.
 
+## Daemon provenance (2026-10-15, issue #13)
+
+`/home/ubuntu/src/fips` is a READ-ONLY upstream reference — never build
+there (the 2026-08-29 lesson: its target/ held the fork-era build and a
+rebuild silently refreshes the system daemon). Bench daemons come from
+the `amperstrand/lab-ble` line, built in a worktree and deployed to the
+provenance-stamped path `/opt/bench/fips-lab-ble/<git-sha>/` (current:
+11b7855ebe — pure upstream d208a9db + the BLE learned-address-type dial
+fix 70eea3c2 + rustfmt). environment.yaml points there; the binary
+self-reports its rev. Run artifacts record the daemon SHA per the
+conwrt runs/ convention.
+
 ## Coordinator topology (locked down 2026-09-02)
 
 > 2026-10-14: the canonical cross-project labgrid doc is conwrt-bench

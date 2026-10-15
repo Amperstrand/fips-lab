@@ -25,11 +25,13 @@ targets:
           ble_adapter: hci0
       - FipsctlDriver:
           # Pinned bench daemon: built from the amperstrand/lab-keylog
-          # worktree at /home/ubuntu/bench/fips-daemon (SHA recorded in
-          # /home/ubuntu/bench/fips-daemon/DAEMON_BUILD), so bench runs stop
-          # depending on whatever branch the dev checkout is on and pick up
-          # the BLE learned-address-type fix + FIPS_LAB_KEYLOG.
-          binary: /home/ubuntu/bench/fips-daemon/target/release/fipsctl
+          # Provenance-stamped stable deploy (issue #13): the
+          # amperstrand/lab-ble daemon line, built in a worktree and
+          # deployed to /opt/bench/fips-lab-ble/<git-sha>/ — the binary
+          # self-reports its rev (fipsctl --version). NEVER point this
+          # at /home/ubuntu/src/fips (read-only upstream reference;
+          # building there silently refreshes the system daemon).
+          binary: /opt/bench/fips-lab-ble/11b7855ebe/fipsctl
           sudo: true
       - BLEScanDriver:
           adapter: hci0
