@@ -18,7 +18,7 @@
 alias  = "s3-lab"
 chip   = "esp32s3"
 ops    = ["flash", "observe"]
-notes  = "G*9 lab identity, USB-JTAG"
+notes  = "G*9 lab identity, USB-JTAG. OBSERVED ABSENT 2026-10-15: the only 303a:1001 unit on the bench host enumerates as 90:DA:72:9A:50:18 and espflash identifies it as an ESP32-C3 (not this board — left untouched, presumed another project's). This serial stays authoritative for the s3-lab board; re-verify identity by USB serial when an S3 reappears in the slot"
 
 [boards."cc:8d:a2:2c:91:98"]
 alias  = "walter-1"
@@ -42,7 +42,7 @@ notes  = "USB CDC c0de:cafe; flash via st-flash (never probe-rs live)"
 alias  = "atom-a"
 chip   = "esp32"
 ops    = ["flash", "observe"]
-notes  = "M5 ATOM Matrix, G*11 lab identity, FTDI 0403:6001 (shared VID:PID with the off-limits M5 Stack — always pass the serial). Charger F+G role ENDED 2026-10-15: owner re-tasked the board to the microfips bench (reconnected on ai-legion, flashed microfips-esp32-l2cap G*11, hardware BLE link to the lab-ble daemon verified — handshake, sustained heartbeats, keylog cross-validated). Brownout history: 2026-09-06 gateway-class binary reboot-looped under WiFi-association TX; retested clean with station-class charger firmware. Gateway-class caveat stands for gateway binaries only"
+notes  = "M5 ATOM Matrix, G*11 lab identity, FTDI 0403:6001 (shared VID:PID with the off-limits M5 Stack — always pass the serial). Charger F+G role ENDED 2026-10-15: owner re-tasked the board to the microfips bench. 2026-10-15: BLE L2CAP link to the lab-ble daemon verified (handshake, heartbeats, keylog cross-validated, capture 99.8% decrypt) AND the WiFi leg verified the same day (association + mDNS + handshake + XK session; required a scoped ufw rule udp/2121 from the bench subnet — see hw-mesh-20261015 RESULTS). Brownout history: 2026-09-06 gateway-class binary reboot-looped under WiFi-association TX; retested clean with station-class charger firmware. Gateway-class caveat stands for gateway binaries only"
 
 [boards."9D529068B4"]
 alias  = "atom-b"

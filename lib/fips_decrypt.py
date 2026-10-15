@@ -233,6 +233,10 @@ def _strip_link(linktype: int, packet: bytes) -> bytes | None:
         return packet[4:]  # NULL/loopback: 4-byte address family
     if linktype == 1:
         return packet[14:]  # Ethernet
+    if linktype == 113:
+        return packet[16:]  # Linux cooked (SLL), tcpdump -i any
+    if linktype == 276:
+        return packet[20:]  # Linux cooked v2 (SLL2)
     return None
 
 
@@ -464,6 +468,11 @@ def main() -> int:
 
     for ts, src, dst, sport, dport, payload in source:
         stats["udp_packets"] += 1
+        if sport == 5353 or dport == 5353:
+            # mDNS: DNS headers nibble-parse as FMP version-0 phase-0 and
+            # pollute the ratio denominator; never carries FMP.
+            stats["mdns_skipped"] = stats.get("mdns_skipped", 0) + 1
+            continue
         frames = list(iter_frames(payload))
         if not frames:
             stats["too_short"] += 1
