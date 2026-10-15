@@ -2,6 +2,46 @@
 
 Physical-device BLE test framework for FIPS and microfips, using labgrid. Runs automated benchmarks and regression tests against real hardware: a MacBook, a Linux box, and ESP32 boards.
 
+## What this repo is — 2026-10
+
+The Amperstrand bench for the microcontroller FIPS program: the labgrid
+harness (drivers, strategy, places), the board safety contract
+(`fips_lab/boards.toml` — flash/observe permissions, serial-matched,
+never VID:PID), the registry notes, and the analysis tooling. It exists
+so every claim about "fips on an MCU" here is a hardware-verified claim.
+
+### What we have tested with it
+
+- The proven hardware loop (2026-10-15): flash an atom with the
+  microfips l2cap image (serial-matched, registry-gated), link it over
+  BLE L2CAP to a pinned fips daemon build, capture with btmon, and
+  decrypt the capture offline — `lib/fips_decrypt` peels both the FMP
+  link layer and the FSP session layer of loopback captures at 100%, and
+  the MCU leg of BLE captures at 100% (issues #222/#223 on the microfips
+  repo hold the evidence).
+- `lib/rig_loopback`: a one-command, no-hardware regression for the
+  whole stack (fresh identities, daemon pair, keylog, capture, probe,
+  decrypt ratio gate) — runs anywhere the pinned daemon builds.
+- Bench bring-up knowledge is captured in fips-lab issues (#11-#13) and
+  the microfips resume issue (#224): hci0 ownership vs the standing
+  system daemon, the clean recovery sequence, and the console-policy
+  reasons a correctly-booted l2cap image prints nothing until its first
+  link event.
+
+### Roadmap
+
+1. Breadth: more boards through the proven loop as they return from
+   other duties (owner-gated); S3 + WiFi-variant scenarios when that
+   board is free.
+2. Coordinator consolidation with the conwrt-side lab registry
+   (regenerate embedded places per its SSOT tooling — #11).
+3. Optional tooling polish: native monitor-mode btsnoop parsing
+   (tshark-backed today), MCU-side FSP variant decode inside
+   SessionDatagrams (microfips #223).
+4. Steady state: every hardware session lands its findings as scenarios
+   here; the decryptor/rig stay the regression surface for whatever the
+   microfips convergence (see its docs/ROADMAP.md) ships next.
+
 ## Architecture Overview
 
 Two layers sit on top of labgrid:
