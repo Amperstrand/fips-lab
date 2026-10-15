@@ -24,13 +24,13 @@ notes  = "G*9 lab identity, USB-JTAG. OBSERVED ABSENT 2026-10-15: the only 303a:
 alias  = "walter-1"
 chip   = "esp32s3"
 ops    = ["flash", "observe"]
-notes  = "G*5 (esp32s3), USB-JTAG; requires DEVICE_NSEC override"
+notes  = "G*5 (esp32s3), USB-JTAG; requires DEVICE_NSEC override. OBSERVED ABSENT 2026-10-15 (bench-host port census, issue #12): no cc:8d esp32s3 USB serial on .208 — entry kept (relay/esp-now roles depend on it); re-verify on return"
 
 [boards."cc:8d:a2:2c:94:08"]
 alias  = "walter-2"
 chip   = "esp32s3"
 ops    = ["flash", "observe"]
-notes  = "G*7 (esp32s3b), USB-JTAG; requires DEVICE_NSEC override"
+notes  = "G*7 (esp32s3b), USB-JTAG; requires DEVICE_NSEC override. OBSERVED ABSENT 2026-10-15 — see walter-1"
 
 [boards."stm32f469i-disco"]
 alias  = "f469-mcu"
@@ -76,3 +76,9 @@ alias  = "m5stick-nucula"
 chip   = "esp32"
 ops    = ["flash", "observe"]
 notes  = "M5StickC Plus (Hades2001 USB-serial bridge, FTDI 0403:6001 — shared VID:PID class: always match the USB serial). Back on the bench 2026-09-12 by owner direction as the nucula RC522 relay-rig board (MFRC522 on I2C 0x28, antenna back-to-back with the ACR1252); supersedes the 2026-09-03 off-bench/evmap-relay note for this serial. The bridge flakes above 115200 baud — flash with esptool at -b 115200 (nucula AGENTS). AXP192 keeps the Grove rail up across resets (RC522 latch-up recovery is firmware-side)"
+
+[boards."fips-esp32-d0wd-cp210x"]
+alias  = "fips-esp32-d0wd"
+chip   = "esp32-d0wd"
+ops    = ["observe"]
+notes  = "CP210x (10c4:ea60) on ai-legion ttyUSB0; runs OLD microfips — NEVER reflash casually (conwrt registry protection note, encoded per issue #12). OBSERVED ABSENT 2026-10-15: no 10c4 device on the bench host's ports (census: nucula-C3, Hades2001 m5stick, atom-a 81528A13B6, F746 ST-LINK only). Refusal-by-default holds; entry encodes observe-only for when it returns"
