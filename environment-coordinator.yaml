@@ -1,6 +1,8 @@
 # Labgrid coordinator-based environment.
-# Requires: labgrid-coordinator running on ai-legion-small:20408
-#           exporters deployed on ai-legion + ai-legion-small
+# Requires: the canonical coordinator on ai-legion 192.168.13.208:20408
+#           (single-coordinator consolidation 2026-09-26; exporters on
+#           ai-legion + ai-legion-small report in there — conwrt-bench
+#           docs/labgrid-coordination.md)
 #           places created via labgrid-client
 #
 # Usage: pytest --lg-env=environment-coordinator.yaml tests/
