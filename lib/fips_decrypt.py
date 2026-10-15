@@ -148,12 +148,20 @@ def iter_btsnoop_payloads(path: Path):
     """Yield (ts, src, dst, sport, dport, payload) for L2CAP frames in a
     btsnoop capture (btmon -w / Android), ACL-fragment reassembly included.
 
+    btmon writes datalink 2001 (BlueZ monitor mode), whose records carry a
+    pseudo-header; those are extracted via tshark, which reads the format
+    natively. Plain H4 captures (datalink 1002) are parsed in-process.
+
     `src`/`dst` carry the ACL handle and direction, `sport` the L2CAP CID, so
     downstream reporting reads like the UDP case.
     """
     data = path.read_bytes()
     if data[:8] != BTSNOOP_MAGIC:
         raise SystemExit(f"not a btsnoop file: {path}")
+    datalink = struct.unpack(">I", data[12:16])[0]
+    if datalink in (2001, 2002):
+        yield from _iter_monitor_l2cap(path)
+        return
     off = 16
     reassembly: dict[int, bytearray] = {}
     while off + 24 <= len(data):
@@ -190,6 +198,26 @@ def iter_btsnoop_payloads(path: Path):
             yield _l2cap_record(ts, direction, handle, bytes(buf[: 4 + l2len]))
         else:
             reassembly[handle] = buf
+
+
+def _iter_monitor_l2cap(path: Path):
+    """tshark-backed L2CAP extraction for monitor-mode btsnoop (requires
+    tshark on the host — the bench boxes ship wireshark-cli)."""
+    import subprocess
+
+    out = subprocess.run(
+        ["tshark", "-r", str(path), "-Y", "btl2cap", "-T", "fields",
+         "-e", "frame.time_epoch", "-e", "btl2cap.cid", "-e", "btl2cap.payload"],
+        check=True, capture_output=True, text=True,
+    ).stdout
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3 or not parts[2]:
+            continue
+        ts = float(parts[0]) if parts[0] else 0.0
+        cid = parts[1] or "?"
+        payload = bytes.fromhex(parts[2].replace(":", ""))
+        yield (ts, "ble", "peer", cid, 0, payload)
 
 
 def _l2cap_record(ts: float, direction: str, handle: int, l2cap: bytes):
@@ -252,9 +280,20 @@ def iter_frames(datagram: bytes):
     Established frames are 16 + payload_len + tag 16; handshake msg1/msg2
     carry their Noise message unencrypted, so they are 4 + payload_len.
     Walking stops at the first prefix that does not parse.
+
+    The MCU (microfips) L2CAP dialect prefixes each FMP frame with a
+    u16-LE total-length word (length excluding the word itself); such
+    frames are unwrapped automatically.
     """
     offset = 0
     while offset + 4 <= len(datagram):
+        if (
+            offset == 0
+            and len(datagram) >= 6
+            and (datagram[0] & 0xF0) != 0
+            and int.from_bytes(datagram[0:2], "little") == len(datagram) - 2
+        ):
+            offset = 2
         meta = classify(datagram[offset:])
         if meta["version"] != 0 or meta["phase"] > 2:
             return
