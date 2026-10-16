@@ -75,7 +75,7 @@ notes  = "Micronuts Cashu hardware wallet, CDC-ACM 16c0:27dd (ttyACM2); FIPS-sid
 alias  = "m5stick-nucula"
 chip   = "esp32"
 ops    = ["flash", "observe"]
-notes  = "M5StickC Plus (Hades2001 USB-serial bridge, FTDI 0403:6001 — shared VID:PID class: always match the USB serial). Back on the bench 2026-09-12 by owner direction as the nucula RC522 relay-rig board (MFRC522 on I2C 0x28, antenna back-to-back with the ACR1252); supersedes the 2026-09-03 off-bench/evmap-relay note for this serial. The bridge flakes above 115200 baud — flash with esptool at -b 115200 (nucula AGENTS). AXP192 keeps the Grove rail up across resets (RC522 latch-up recovery is firmware-side)"
+notes  = "M5StickC Plus (Hades2001 USB-serial bridge, FTDI 0403:6001 — shared VID:PID class: always match the USB serial). 2026-10-16: re-tasked from nucula CCID to microfips bench (owner direction; CCID firmware replaced with microfips-esp32-wifi G*5). WiFi interop verified against fips v0.5.2: link, FSP probe, /health service all working. Previous nucula role can be restored by reflashing."
 
 [boards."fips-esp32-d0wd-cp210x"]
 alias  = "fips-esp32-d0wd"
