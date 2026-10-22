@@ -307,6 +307,70 @@ def flash(port: Path, binary: Path, esp_toolchain: Path = EXPORT_ESP,
     )
 
 
+REMOTE_FLASH_HOST = os.environ.get("FIPS_LAB_FLASH_HOST", "ai-legion")
+
+
+def remote_board_available(serial: str, host: str = REMOTE_FLASH_HOST) -> str | None:
+    """Skip-guard for boards attached to a REMOTE bench host (atom-a
+    lives on ai-legion): None when the serial is present there, else a
+    human-readable reason for pytest.skip."""
+    try:
+        r = subprocess.run(
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", host,
+             f"ls /dev/serial/by-id/ | grep -c {serial}"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except (subprocess.TimeoutExpired, OSError) as e:
+        return f"ssh to {host} failed: {e}"
+    if r.returncode != 0:
+        return f"ssh to {host} failed: {r.stderr.strip()[:120]}"
+    if r.stdout.strip() != "1":
+        return f"serial {serial} not attached to {host}"
+    return None
+
+
+def flash_remote(binary: Path, serial: str, host: str = REMOTE_FLASH_HOST) -> None:
+    """Flash a board attached to a remote bench host. Registry-gated like
+    flash(); uses the standalone espflash installed on the remote
+    (/usr/local/bin/espflash on ai-legion, #237) — NEVER esptool
+    write-flash with a raw ELF (stores it at 0x0 while the ROM boots
+    0x1000: the old firmware keeps running, #237 trap). Port-lifecycle
+    discipline remote-side: fuser -k the by-id node first."""
+    require_board(serial, "flash")
+    byid = (
+        f"/dev/serial/by-id/usb-M5STACK_Inc._M5_Serial_Converter_"
+        f"{serial}-if00-port0"
+    )
+    remote_bin = f"/tmp/fips-lab-{binary.name}"
+    subprocess.run(
+        ["scp", str(binary), f"{host}:{remote_bin}"], check=True, timeout=120,
+    )
+    subprocess.run(
+        ["ssh", host, f"fuser -k {byid} 2>/dev/null; true"],
+        capture_output=True, timeout=15,
+    )
+    time.sleep(1)
+    cmd = (f"/usr/local/bin/espflash flash -p {byid} --chip esp32 "
+           f"--baud 115200 {remote_bin}")
+    r = subprocess.run(["ssh", host, cmd], capture_output=True, text=True,
+                       timeout=170)
+    if r.returncode != 0:
+        raise RuntimeError(
+            f"remote espflash failed (rc={r.returncode}): "
+            f"{r.stdout[-300:]} {r.stderr[-300:]}"
+        )
+
+
+def build_host_sim(repo: Path) -> Path:
+    """Build microfips-sim for the current host and resolve the binary
+    through the same target-dir override logic as the firmware builders."""
+    subprocess.run(
+        ["cargo", "build", "-p", "microfips-sim", "--release"],
+        cwd=repo, check=True, capture_output=True, timeout=300,
+    )
+    return _release_binary(repo, "microfips-sim", ".")
+
+
 STM32_VIDPID = "c0de/cafe"
 ARM_TARGET = "thumbv7em-none-eabi"
 
@@ -396,14 +460,33 @@ def build_d0wd_uart(repo: Path, nsec_hex: str) -> Path:
 
 
 D0WD_WIFI_BIN = "microfips-esp32-wifi"
+D0WD_LEDWIFI_BIN = "ledwifi"
 
 
-def build_d0wd_wifi(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
+def _release_binary(repo: Path, name: str, target: str) -> Path:
+    """Resolve a cargo release artifact against the global target-dir
+    override: this host's ~/.cargo/config.toml redirects every build to
+    /home/ubuntu/.cargo-target, while the fixture convention (and hosts
+    without the override) is repo/target. Newest existing candidate wins
+    — a stale repo/target leftover must not shadow the fresh build."""
+    candidates = [
+        Path.home() / ".cargo-target" / target / "release" / name,
+        repo / "target" / target / "release" / name,
+    ]
+    existing = [c for c in candidates if c.exists()]
+    if not existing:
+        return candidates[-1]
+    return max(existing, key=lambda p: p.stat().st_mtime)
+
+
+def build_d0wd_wifi(repo: Path, npub_hex: str, nsec_hex: str,
+                    bin: str = D0WD_WIFI_BIN) -> Path:
     """D0WD WiFi tier (CYD smoke leg): `microfips-esp32 --features wifi`.
     Same pin set as the S3 wifi build (build_firmware) — SSID, pinned
     npub, device nsec — verified in the binary before any hardware sees
     it. The D0WD identity knob is DEVICE_NSEC_HEX_esp32 (the esp32
-    registry entry), like the other D0WD tiers."""
+    registry entry), like the other D0WD tiers. `bin` selects the
+    image (the probe-recovery scenario builds the LED-service image)."""
     wifi = load_dotenv(repo)
     if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
         raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
@@ -425,11 +508,11 @@ def build_d0wd_wifi(repo: Path, npub_hex: str, nsec_hex: str) -> Path:
     cmd = (
         f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
         f"-p microfips-esp32 --release --target {D0WD_TARGET} "
-        f"-Zbuild-std=core,alloc --features wifi --bin {D0WD_WIFI_BIN}"
+        f"-Zbuild-std=core,alloc --features wifi --bin {bin}"
     )
     subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
 
-    binary = repo / "target" / D0WD_TARGET / "release" / D0WD_WIFI_BIN
+    binary = _release_binary(repo, bin, D0WD_TARGET)
     data = binary.read_bytes()
     misses = []
     if wifi["WIFI_SSID"].encode() not in data:
@@ -447,6 +530,7 @@ S3_ESPNOW_WIFI_GW_BIN = "microfips-esp32s3-espnow-wifi-gw"
 D0WD_ESPNOW_BIN = "microfips-esp32-espnow"
 D0WD_ESPNOW_WIFI_GW_BIN = "microfips-esp32-espnow-wifi-gw"
 S3_HYBRID_BIN = "microfips-esp32s3-hybrid"
+S3_RELAY_AP_PEER_BIN = "microfips-esp32s3-relay-ap-peer"
 
 
 def build_d0wd_espnow_wifi_gw(repo: Path, npub_hex: str) -> Path:
@@ -543,6 +627,59 @@ def build_s3_hybrid(
         misses.append("pinned npub")
     if bytes.fromhex(nsec_hex) not in data:
         misses.append("device nsec")
+    if misses:
+        raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
+    return binary
+
+
+def build_s3_relay_ap_peer(
+    repo: Path, npub_hex: str, nsec_hex: str, relay_ap_ssid: str,
+) -> Path:
+    """S3 FIPS relay AP with onboard peer (microfips #253 gate):
+    `microfips-esp32s3-relay-ap-peer`. Pins: uplink AP credentials, daemon
+    npub (mDNS-pinned upstream), device nsec, plus RELAY_AP_SSID — a
+    bench-specific offered SSID so the relay never collides with a real
+    !FIPS AP in radio range. RELAY_AP_SSID is a compiled-in string knob
+    (option_env!) and therefore binary-verifiable via verify_knob. The
+    relay-ap binary family is CI-dark on microfips (extended-firmware
+    matrix is dispatch-only) — the bench build is its only compile guard."""
+    wifi = load_dotenv(repo)
+    if "WIFI_SSID" not in wifi or "WIFI_PASSWORD" not in wifi:
+        raise RuntimeError("microfips .env missing WIFI_SSID/WIFI_PASSWORD")
+
+    subprocess.run(
+        ["cargo", "clean", "-p", "microfips-esp-transport", "-p", "microfips-esp32s3",
+         "--release", "--target", S3_TARGET],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+    env = dict(os.environ)
+    env.update({
+        "WIFI_SSID": wifi["WIFI_SSID"],
+        "WIFI_PASSWORD": wifi["WIFI_PASSWORD"],
+        "DEVICE_NPUB_HEX_vps": npub_hex,
+        "DEVICE_NSEC_HEX_esp32s3": nsec_hex,
+        "RELAY_AP_SSID": relay_ap_ssid,
+        "RUSTUP_TOOLCHAIN": "esp",
+    })
+    cmd = (
+        f". {EXPORT_ESP} && RUSTUP_TOOLCHAIN=esp cargo build "
+        f"-p microfips-esp32s3 --release --target {S3_TARGET} "
+        f"-Zbuild-std=core,alloc --no-default-features --features relay-ap "
+        f"--bin {S3_RELAY_AP_PEER_BIN}"
+    )
+    subprocess.run(["bash", "-c", cmd], cwd=repo, check=True, capture_output=True, env=env)
+
+    binary = repo / "target" / S3_TARGET / "release" / S3_RELAY_AP_PEER_BIN
+    data = binary.read_bytes()
+    misses = []
+    if wifi["WIFI_SSID"].encode() not in data:
+        misses.append("WIFI_SSID")
+    if bytes.fromhex(npub_hex) not in data:
+        misses.append("pinned npub")
+    if bytes.fromhex(nsec_hex) not in data:
+        misses.append("device nsec")
+    verify_knob(binary, relay_ap_ssid)
     if misses:
         raise RuntimeError(f"binary verification failed (stale pin?): missing {misses}")
     return binary
@@ -1053,7 +1190,7 @@ class LabDaemon:
         )
         cfg = cfg.replace(
             "transports:",
-            f'control:\n  socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
+            f'  control:\n    socket_path: "/tmp/bench-labd-{self.port}.sock"\ntransports:',
         )
         if self.ble:
             # Anchored on the udp block, not the "transports:" marker the
